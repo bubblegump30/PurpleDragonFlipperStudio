@@ -67,7 +67,7 @@ assets/dragon.png / dragon.ico Dragon branding and Windows icon
 assets/Preview-Desktop.png     Actual app render at 1672×941
 assets/Preview-4K.png          Actual app render at 3840×2160
 PurpleDragon.spec              PyInstaller Windows build recipe
-tests/                        61 GUI, setup and navigation checks
+tests/                        62 GUI, setup and navigation checks
 ```
 
 Run tests: `python -m unittest discover -s tests -v`.
