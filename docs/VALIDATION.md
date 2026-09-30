@@ -57,3 +57,7 @@ Four new checks verify diagnostic metadata without user-content disclosure, atom
 ## v0.3.0 release validation
 
 Three Help Center tests cover reusable dialog opening without changing workspace, cross-topic search/no-match/clear behavior, and accurate capability guidance without opening a serial session. All 61 tests passed. The diagnostics version test now follows the actual application version. Help Center layout was inspected and release previews regenerated. Windows packaging, multi-monitor behavior and physical hardware remain unverified; this release is not declared hardware-stable.
+
+## Windows compact-layout correction
+
+The initial Windows build found 34 pixels of horizontal overflow in GPIO Lab at the compact size. Pin controls now wrap into a three-column grid and the checkbox labels stack on compact windows. The desktop row is restored when expanding. A regression test covers both arrangements. All 62 tests pass locally; Windows verification is running in Actions.
