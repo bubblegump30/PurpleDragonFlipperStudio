@@ -1,6 +1,14 @@
 name: Windows build
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'purple_dragon/**'
+      - 'tests/**'
+      - 'requirements.txt'
+      - 'PurpleDragon.spec'
+      - '.github/workflows/windows-build.yml'
 permissions:
   contents: read
 jobs:
