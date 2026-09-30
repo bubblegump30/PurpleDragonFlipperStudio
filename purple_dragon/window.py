@@ -183,17 +183,19 @@ class MainWindow(base.WorkspaceServices):
         self.gpio_upper=upper
         pins,p=panel();p.setSpacing(7)
         p.addWidget(label('♟  Pin Control','sectionTitle'))
-        controls=QHBoxLayout();controls.setSpacing(5)
+        controls=QGridLayout();controls.setSpacing(5)
+        self.gpio_controls=controls
         self.pin=QComboBox();self.pin.setMinimumWidth(130)
         self.pin.addItems(['PA7 (pin 2)','PA6 (pin 3)','PA4 (pin 4)','PB3 (pin 5)','PB2 (pin 6)','PC3 (pin 7)','PC1 (pin 15)','PC0 (pin 16)'])
-        controls.addWidget(self.pin,2)
+        controls.addWidget(self.pin,0,0)
         self.gpio_buttons={}
         for action,role,glyph in [('Input','purple','input'),('Output','cyan','output'),('Read','blue','search'),('LOW','neutral','down'),('HIGH','red','up')]:
             btn=NeonButton(action,lambda checked=False,a=action:self.gpio_action(a),role,glyph)
             btn.setEnabled(False);btn.setToolTip('Requires the RC7 GPIO backend and a device connection.')
-            self.gpio_buttons[action]=btn;controls.addWidget(btn,1)
+            self.gpio_buttons[action]=btn;controls.addWidget(btn,0,len(self.gpio_buttons))
         p.addLayout(controls)
         toggles=QHBoxLayout()
+        self.gpio_toggles=toggles
         self.arm=QCheckBox('Arm LOW/HIGH after Output succeeds');self.arm.setEnabled(False)
         self.poll=QCheckBox('Read selected pin every second');self.poll.setEnabled(False)
         toggles.addWidget(self.arm);toggles.addWidget(self.poll);toggles.addStretch();p.addLayout(toggles)
@@ -356,6 +358,15 @@ class MainWindow(base.WorkspaceServices):
         if hasattr(self,'gpio_upper'):
             direction=QBoxLayout.Direction.TopToBottom if self.width()<1300 else QBoxLayout.Direction.LeftToRight
             self.gpio_upper.setDirection(direction);self.gpio_middle.setDirection(direction)
+            compact=self.width()<1300
+            self.gpio_toggles.setDirection(QBoxLayout.Direction.TopToBottom if compact else QBoxLayout.Direction.LeftToRight)
+            while self.gpio_controls.count():self.gpio_controls.takeAt(0)
+            for column in range(6):self.gpio_controls.setColumnStretch(column,0)
+            self.gpio_controls.addWidget(self.pin,0,0,1,3 if compact else 1)
+            for i,btn in enumerate(self.gpio_buttons.values()):
+                self.gpio_controls.addWidget(btn,1+i//3 if compact else 0,i%3 if compact else i+1)
+            for column in range(3 if compact else 6):self.gpio_controls.setColumnStretch(column,1)
+
 
     def closeEvent(self,event):
         super().closeEvent(event)
