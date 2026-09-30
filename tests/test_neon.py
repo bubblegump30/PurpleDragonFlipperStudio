@@ -48,6 +48,15 @@ class NeonTests(unittest.TestCase):
                 self.w.navigate(name);self.app.processEvents()
                 self.assertEqual(self.w.stack.currentWidget().horizontalScrollBar().maximum(),0,name)
 
+    def test_compact_gpio_controls_wrap_and_expand(self):
+        from PySide6.QtWidgets import QBoxLayout
+        self.w.resize(980,760);self.app.processEvents()
+        self.assertEqual(self.w.gpio_controls.getItemPosition(self.w.gpio_controls.indexOf(self.w.gpio_buttons['HIGH']))[:2],(2,1))
+        self.assertEqual(self.w.gpio_toggles.direction(),QBoxLayout.Direction.TopToBottom)
+        self.w.resize(1672,941);self.app.processEvents()
+        self.assertEqual(self.w.gpio_controls.getItemPosition(self.w.gpio_controls.indexOf(self.w.gpio_buttons['HIGH']))[:2],(0,5))
+        self.assertEqual(self.w.gpio_toggles.direction(),QBoxLayout.Direction.LeftToRight)
+
     def test_disconnected_hardware_actions_are_gated(self):
         for item in self.w.gpio_buttons.values():self.assertFalse(item.isEnabled())
         self.assertFalse(self.w.arm.isEnabled())
