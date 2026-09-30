@@ -60,4 +60,4 @@ Three Help Center tests cover reusable dialog opening without changing workspace
 
 ## Windows compact-layout correction
 
-The initial Windows build found 34 pixels of horizontal overflow in GPIO Lab at the compact size. Pin controls now wrap into a three-column grid and the checkbox labels stack on compact windows. The desktop row is restored when expanding. A regression test covers both arrangements. All 62 tests pass locally; Windows verification is running in Actions.
+The initial Windows build found 34 pixels of horizontal overflow in GPIO Lab at the compact size. Pin controls now wrap into a three-column grid and the checkbox labels stack on compact windows. The desktop row is restored when expanding. A regression test covers both arrangements. All 62 tests pass locally. Windows Actions run 36694327173 passed the test suite, built the executable folder and uploaded the Windows artifact. Physical-device and interactive Windows checks remain outstanding.
