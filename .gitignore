@@ -1,0 +1,16 @@
+# Python and local environments
+.venv/
+.venv.previous-*/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+# Build output
+build/
+dist/
+*.egg-info/
+# Local settings and temporary files
+*.ini
+*.log
+*.tmp
+.DS_Store
+Thumbs.db
