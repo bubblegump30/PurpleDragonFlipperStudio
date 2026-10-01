@@ -18,7 +18,7 @@ jobs:
     env:
       QT_QPA_PLATFORM: offscreen
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -29,7 +29,7 @@ jobs:
       - name: Build executable folder
         run: python -m PyInstaller --clean --noconfirm PurpleDragon.spec
       - name: Upload Windows artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: PurpleDragonFlipperStudio-v0.3.0-Windows-x64
           path: dist/PurpleDragonFlipperStudio/
