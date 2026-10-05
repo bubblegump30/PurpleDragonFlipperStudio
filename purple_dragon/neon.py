@@ -1,5 +1,6 @@
 """Painted neon controls, vector icons, and artwork from the user's reference."""
 from pathlib import Path
+from functools import lru_cache
 from PySide6.QtCore import Qt, QRectF, QByteArray, QSize
 from PySide6.QtGui import QColor, QPainter, QPainterPath, QPen, QLinearGradient, QFont, QPixmap, QIcon
 from PySide6.QtSvg import QSvgRenderer
@@ -33,16 +34,21 @@ PATHS = {
 }
 
 
+@lru_cache(maxsize=128)
 def icon(name, color='#cbb9ff'):
     path = PATHS.get(name, PATHS['cpu'])
     svg = f'<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path d="{path}" fill="none" stroke="{color}" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>'
     renderer = QSvgRenderer(QByteArray(svg.encode()))
-    pix = QPixmap(64,64)
-    pix.fill(Qt.GlobalColor.transparent)
-    p = QPainter(pix)
-    renderer.render(p)
-    p.end()
-    return QIcon(pix)
+    result = QIcon()
+    for scale in (1, 2, 3):
+        pix = QPixmap(64 * scale, 64 * scale)
+        pix.fill(Qt.GlobalColor.transparent)
+        p = QPainter(pix)
+        renderer.render(p)
+        p.end()
+        pix.setDevicePixelRatio(scale)
+        result.addPixmap(pix)
+    return result
 
 
 def glow_path(p, path, color, strength=1):

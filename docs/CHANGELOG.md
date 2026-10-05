@@ -77,3 +77,7 @@ Added port-loss monitoring, send disablement on loss, manual Retry/Reconnect, pr
 ## v0.3.3 — Console QoL
 
 Added persistent command favorites, receive timestamp toggle, bounded capture while display is paused, resume catch-up, raw text and timestamped JSON exports, capture trimming metadata, and exact line-ending preservation in atomic exports.
+
+## v0.3.4 — Workspace Polish
+
+Added draggable GPIO panels with compact/wide size persistence and reset, workspace/search focus shortcuts, accessible control names, helpful tooltips, and cached multi-resolution icons. Fixed transient compact-layout overflow.

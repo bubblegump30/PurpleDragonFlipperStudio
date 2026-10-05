@@ -4,8 +4,9 @@ import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
-from PySide6.QtCore import QSettings, QUrl
+from PySide6.QtCore import QSettings, QUrl, Qt
 from PySide6.QtWidgets import QApplication, QFileDialog
+from PySide6.QtTest import QTest
 from purple_dragon.window import MainWindow
 from purple_dragon.theme import THEMES
 from purple_dragon.neon import NeonButton, NeonPanel
@@ -69,6 +70,50 @@ class NeonTests(unittest.TestCase):
         path=Path(self.temp.name)/'history.txt'
         with patch.object(QFileDialog,'getSaveFileName',return_value=(str(path),'Text')):self.w.export_history()
         self.assertEqual(path.read_text(),'local history test')
+
+    def test_splitters_adapt_and_preserve_separate_layout_sizes(self):
+        self.w.resize(1672,941);self.app.processEvents()
+        self.w.gpio_top_splitter.setSizes([700,400])
+        self.w.save_workspace_panels()
+        wide=list(self.w.settings.value('panels/wide/top'))
+        self.w.resize(980,760);self.app.processEvents()
+        self.assertEqual(self.w.gpio_top_splitter.orientation(),Qt.Orientation.Vertical)
+        self.w.gpio_top_splitter.setSizes([350,220]);self.w.save_workspace_panels()
+        self.assertEqual(list(self.w.settings.value('panels/wide/top')),wide)
+        self.w.resize(1672,941);self.app.processEvents()
+        self.assertEqual(self.w.gpio_top_splitter.orientation(),Qt.Orientation.Horizontal)
+        sizes=self.w.gpio_top_splitter.sizes()
+        self.assertAlmostEqual(sizes[0]/sum(sizes),int(wide[0])/sum(map(int,wide)),delta=.08)
+        self.assertFalse(self.w.gpio_top_splitter.childrenCollapsible())
+
+    def test_panel_sizes_restart_reset_and_invalid_recovery(self):
+        self.w.gpio_top_splitter.setSizes([700,400]);self.w.save_workspace_panels()
+        settings=self.w.settings;self.w.close()
+        self.w=MainWindow(settings=settings);self.w.show();self.app.processEvents()
+        self.assertTrue(all(x>0 for x in self.w.gpio_top_splitter.sizes()))
+        self.w.reset_workspace_panels()
+        self.assertFalse(settings.contains('panels/wide/top'))
+        settings.setValue('panels/compact/top',['bad',-1])
+        self.w.resize(980,760);self.app.processEvents()
+        self.assertTrue(all(x>0 for x in self.w.gpio_top_splitter.sizes()))
+
+    def test_search_and_selector_shortcuts_focus_without_transmission(self):
+        self.w.activateWindow();self.app.processEvents()
+        QTest.keyClick(self.w,Qt.Key.Key_F,Qt.KeyboardModifier.ControlModifier)
+        self.app.processEvents()
+        self.assertEqual(self.w.workspace.currentText(),'UART Console')
+        self.assertTrue(self.w.console_search.hasFocus())
+        QTest.keyClick(self.w,Qt.Key.Key_K,Qt.KeyboardModifier.ControlModifier)
+        self.app.processEvents()
+        self.assertTrue(self.w.workspace.view().isVisible())
+        self.w.workspace.hidePopup()
+        self.assertIsNone(self.w.session)
+
+    def test_keyboard_button_focus_is_visible(self):
+        self.w.tab_buttons['UART Console'].setFocus(Qt.FocusReason.TabFocusReason)
+        self.app.processEvents()
+        self.assertTrue(self.w.tab_buttons['UART Console'].keyboard_focus)
+        self.assertIn('Ctrl+F',self.w.console_search.toolTip())
 
 
 if __name__=='__main__':unittest.main()

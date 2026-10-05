@@ -42,6 +42,8 @@ def stylesheet(accent):
     QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height:0; }
     QStatusBar { background:#030813; border-top:1px solid #293552; font-size:10px; color:#9baecf; }
     QFrame#separator { background:#30405c; }
+    QSplitter::handle { background:#20344c; border:1px solid #31577a; border-radius:3px; }
+    QSplitter::handle:hover { background:ACCENT; }
     QToolTip { background:#091327; border:1px solid ACCENT; color:#eee6ff; padding:8px; }
     QMessageBox,QDialog { background:#061022; }
     QMessageBox QPushButton { background:#30214a; border:1px solid ACCENT; padding:8px 20px; border-radius:5px; }

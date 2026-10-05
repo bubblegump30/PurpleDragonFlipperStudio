@@ -5,7 +5,7 @@ from PySide6.QtWidgets import (
     QApplication,QMainWindow,QWidget,QFrame,QLabel,QVBoxLayout,QHBoxLayout,QGridLayout,
     QComboBox,QPlainTextEdit,QCheckBox,QStackedWidget,QScrollArea,QButtonGroup,
     QPushButton,QLineEdit,
-    QBoxLayout,
+    QBoxLayout, QSplitter,
 )
 from . import base_window as base
 from .base_window import ASSETS, WEBSITE, label
@@ -186,6 +186,12 @@ class MainWindow(base.WorkspaceServices):
         w.addWidget(banner)
         upper=QHBoxLayout();upper.setSpacing(3)
         self.gpio_upper=upper
+        self.gpio_top_splitter=QSplitter(Qt.Orientation.Horizontal)
+        self.gpio_top_splitter.setChildrenCollapsible(False)
+        self.gpio_top_splitter.setHandleWidth(9)
+        self.gpio_top_splitter.setToolTip('Drag the divider to resize Pin Control and Setup & Presets. Ctrl+Shift+0 resets panel sizes.')
+        self.gpio_top_splitter.splitterMoved.connect(lambda *_: self.save_workspace_panels())
+        upper.addWidget(self.gpio_top_splitter)
         pins,p=panel();p.setSpacing(7)
         p.addWidget(label('♟  Pin Control','sectionTitle'))
         controls=QGridLayout();controls.setSpacing(5)
@@ -207,7 +213,7 @@ class MainWindow(base.WorkspaceServices):
         p.addWidget(label("GPIO controls unavailable · Connect the RC7 backend to enable hardware actions.","muted"))
         self.arm.setToolTip("Arming is available only after the GPIO backend confirms Output mode.")
         self.poll.setToolTip("Polling requires the GPIO backend and a verified device session.")
-        upper.addWidget(pins,3)
+        self.gpio_top_splitter.addWidget(pins)
         presets,p=panel();p.setSpacing(7);p.addWidget(label('⚙  Setup & Presets','sectionTitle'))
         row=QHBoxLayout();row.setSpacing(5)
         self.profile=QComboBox();self.profile.setEditable(True);self.profile.setMinimumWidth(100)
@@ -223,10 +229,16 @@ class MainWindow(base.WorkspaceServices):
             btn=NeonButton(title,handler,'neutral');btn.setMinimumHeight(34);actions.addWidget(btn)
         p.addLayout(actions)
         self.profile_feedback=label('Local setups · Rename uses the name entered above.','muted');p.addWidget(self.profile_feedback)
-        upper.addWidget(presets,2)
+        self.gpio_top_splitter.addWidget(presets)
         w.addLayout(upper)
         middle=QHBoxLayout();middle.setSpacing(3)
         self.gpio_middle=middle
+        self.gpio_info_splitter=QSplitter(Qt.Orientation.Horizontal)
+        self.gpio_info_splitter.setChildrenCollapsible(False)
+        self.gpio_info_splitter.setHandleWidth(9)
+        self.gpio_info_splitter.setToolTip('Drag the divider to resize Latest GPIO Response and Pin Information.')
+        self.gpio_info_splitter.splitterMoved.connect(lambda *_: self.save_workspace_panels())
+        middle.addWidget(self.gpio_info_splitter)
         response,r=panel();r.setSpacing(4)
         response_header=QHBoxLayout();response_header.addWidget(label('⌁  Latest GPIO Response','sectionTitle'),1)
         clear=NeonButton('Clear',lambda:self.gpio_response.clear(),'neutral','trash');clear.setFixedSize(91,36);response_header.addWidget(clear)
@@ -234,14 +246,14 @@ class MainWindow(base.WorkspaceServices):
         self.gpio_response=QPlainTextEdit();self.gpio_response.setObjectName('gpioResponse');self.gpio_response.setReadOnly(True)
         self.gpio_response.setMinimumHeight(97);self.gpio_response.setMaximumHeight(130)
         self.gpio_response.setPlainText('Choose a pin and connect to view its response.\n[INFO] Use Input before Read; use Output and arm before LOW/HIGH.\n[INFO] Only connect 3.3 V compatible circuitry. Device backend required.')
-        r.addWidget(self.gpio_response);middle.addWidget(response,3)
+        r.addWidget(self.gpio_response);self.gpio_info_splitter.addWidget(response)
         info,inf=panel();inf.setSpacing(4);inf.addWidget(label('ⓘ  Pin Information','sectionTitle'))
         info_body=QHBoxLayout();grid=QGridLayout();grid.setVerticalSpacing(3)
         self.pin_value=label(self.pin.currentText());self.pin_value.setObjectName('pinValue')
         for i,(title,value) in enumerate([('Selected Pin',self.pin_value),('Mode',label('—')),('Last State',label('—')),('Voltage (3.3 V)',label('—')),('Direction',label('—'))]):
             grid.addWidget(label(title,'muted'),i,0);grid.addWidget(value,i,1)
         info_body.addLayout(grid,3);chip=ChipArt(kind='blue');chip.setMinimumSize(115,100);info_body.addWidget(chip,2)
-        inf.addLayout(info_body);middle.addWidget(info,2);w.addLayout(middle)
+        inf.addLayout(info_body);self.gpio_info_splitter.addWidget(info);w.addLayout(middle)
         history,h=panel();h.setSpacing(3)
         tools=QHBoxLayout();tools.addWidget(label('☷  Input History','sectionTitle'),1)
         export_btn=NeonButton('Export',self.export_history,'neutral','list');export_btn.setFixedSize(104,36);tools.addWidget(export_btn)
@@ -304,7 +316,10 @@ class MainWindow(base.WorkspaceServices):
             ('Home','Ctrl+Home',lambda:self.navigate('Command Center')),
             ('Appearance','Ctrl+,',lambda:self.navigate('Appearance')),
             ('Console input','Ctrl+L',self.focus_console),('Refresh ports','F5',self.refresh_ports),
-            ('Beginner guide','F1',self.beginner_guide)]
+            ('Beginner guide','F1',self.beginner_guide),
+            ('Workspace selector','Ctrl+K',self.focus_workspace_selector),
+            ('Transcript search','Ctrl+F',self.focus_transcript_search),
+            ('Reset panel sizes','Ctrl+Shift+0',self.reset_workspace_panels)]
         for i,name in enumerate(self.tab_buttons,1):
             shortcuts.append((name,'Ctrl+'+str(i),lambda checked=False,n=name:self.navigate(n)))
         for title,key,callback in shortcuts:
@@ -313,7 +328,18 @@ class MainWindow(base.WorkspaceServices):
         for i,(name,btn) in enumerate(self.tab_buttons.items(),1):
             tip=name+' · Ctrl+'+str(i)
             btn.setToolTip(tip);self.nav[name].setToolTip(tip)
-        self.workspace.setToolTip('Select a workspace. Alt+Left / Alt+Right navigate your session history.')
+        self.workspace.setToolTip('Select a workspace · Ctrl+K. Alt+Left / Alt+Right navigate your session history.')
+        self.workspace.setAccessibleName('Workspace selector')
+        self.console_search.setToolTip('Search retained displayed text · Ctrl+F opens Console search. Enter finds the next match.')
+        self.console_search.setAccessibleName('Transcript search')
+        self.command.setAccessibleName('Serial command draft')
+        self.port.setAccessibleName('Serial port')
+        self.pin.setToolTip('Select a GPIO pin for local setup notes. Hardware actions require the backend.')
+        self.notes.setToolTip('Local setup notes. Save Setup stores the selected pin and notes.')
+        self.baud.setToolTip('Serial baud rate. Saved per port; change while disconnected.')
+        self.ending.setToolTip('Line ending appended only when you explicitly Send a command.')
+        self.console_pause.setToolTip('Freeze the display while continuing bounded capture; uncheck to catch up.')
+        self.command_favorites.setAccessibleName('Saved command favorites')
         self.update_navigation_actions()
 
     def update_navigation_actions(self):
@@ -328,7 +354,48 @@ class MainWindow(base.WorkspaceServices):
             self.navigate(self.navigation_history[target],record=False)
 
     def focus_console(self):
-        self.navigate('UART Console');self.command.setFocus()
+        self.navigate('UART Console');self.command.setFocus(Qt.FocusReason.ShortcutFocusReason)
+        self.stack.currentWidget().ensureWidgetVisible(self.command)
+
+    def focus_workspace_selector(self):
+        self.workspace.setFocus(Qt.FocusReason.ShortcutFocusReason)
+        self.workspace.showPopup()
+
+    def focus_transcript_search(self):
+        self.navigate('UART Console')
+        self.console_search.setFocus(Qt.FocusReason.ShortcutFocusReason)
+        self.console_search.selectAll()
+        self.stack.currentWidget().ensureWidgetVisible(self.console_search)
+
+    def save_workspace_panels(self):
+        mode = getattr(self, 'panel_layout_mode', None)
+        if mode:
+            for name, splitter in [('top', self.gpio_top_splitter), ('info', self.gpio_info_splitter)]:
+                self.settings.setValue('panels/' + mode + '/' + name, splitter.sizes())
+
+    def restore_workspace_panels(self, compact):
+        mode = 'compact' if compact else 'wide'
+        if getattr(self, 'panel_layout_mode', None) == mode:
+            return
+        self.panel_layout_mode = mode
+        orientation = Qt.Orientation.Vertical if compact else Qt.Orientation.Horizontal
+        for name, splitter in [('top', self.gpio_top_splitter), ('info', self.gpio_info_splitter)]:
+            splitter.setOrientation(orientation)
+            sizes = self.settings.value('panels/' + mode + '/' + name, [600, 400])
+            try:
+                sizes = [int(x) for x in sizes]
+                if len(sizes) != 2 or any(x <= 0 or x > 100000 for x in sizes):
+                    raise ValueError('Invalid splitter sizes')
+            except (ValueError, TypeError):
+                sizes = [600, 400]
+            splitter.setSizes(sizes)
+
+    def reset_workspace_panels(self):
+        for mode in ('compact', 'wide'):
+            for name in ('top', 'info'):
+                self.settings.remove('panels/' + mode + '/' + name)
+        self.panel_layout_mode = None
+        self.restore_workspace_panels(self.width() < 1300)
 
     def change_inline_theme(self,name):
         self.theme.setCurrentText(name)
@@ -361,9 +428,9 @@ class MainWindow(base.WorkspaceServices):
         for i,btn in enumerate(self.tab_buttons.values()):self.tab_grid.addWidget(btn,i//4 if tab_narrow else 0,i%4 if tab_narrow else i)
         self.foundation_button.setVisible(self.width()>=1200)
         if hasattr(self,'gpio_upper'):
-            direction=QBoxLayout.Direction.TopToBottom if self.width()<1300 else QBoxLayout.Direction.LeftToRight
-            self.gpio_upper.setDirection(direction);self.gpio_middle.setDirection(direction)
+
             compact=self.width()<1300
+            self.restore_workspace_panels(compact)
             self.gpio_toggles.setDirection(QBoxLayout.Direction.TopToBottom if compact else QBoxLayout.Direction.LeftToRight)
             while self.gpio_controls.count():self.gpio_controls.takeAt(0)
             for column in range(6):self.gpio_controls.setColumnStretch(column,0)
@@ -371,11 +438,27 @@ class MainWindow(base.WorkspaceServices):
             for i,btn in enumerate(self.gpio_buttons.values()):
                 self.gpio_controls.addWidget(btn,1+i//3 if compact else 0,i%3 if compact else i+1)
             for column in range(3 if compact else 6):self.gpio_controls.setColumnStretch(column,1)
+        # Settle changed splitter constraints before the scroll area uses its old width.
+        self.content.layout().activate()
+        QTimer.singleShot(0, self.settle_workspace_layout)
+        scroll = self.stack.currentWidget()
+        if scroll is not None:
+            page = scroll.widget()
+            page.layout().activate()
+            page.resize(max(scroll.viewport().width(), page.minimumSizeHint().width()), page.height())
 
+
+    def settle_workspace_layout(self):
+        scroll = self.stack.currentWidget()
+        if scroll is not None:
+            page = scroll.widget()
+            page.layout().activate()
+            page.resize(max(scroll.viewport().width(), page.minimumSizeHint().width()), page.height())
 
     def closeEvent(self,event):
         super().closeEvent(event)
         if event.isAccepted():
+            self.save_workspace_panels()
             self.settings.setValue("window_geometry",self.saveGeometry())
             self.settings.sync()
 

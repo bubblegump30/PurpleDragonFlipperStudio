@@ -1,6 +1,6 @@
 # PurpleDragonFlipperStudio
 
-Neon GUI v0.3.3 · Created by KyleAustinHillier @PurpleDragonFoundationLtd
+Neon GUI v0.3.4 · Created by KyleAustinHillier @PurpleDragonFoundationLtd
 
 Rebuilt around your supplied neon-console design: the illustrated brush-style header, dragon and Flipper artwork, compact connection bar, sidebar and horizontal workspace tabs, purple outer frame, blue inner frames, multicolor illuminated GPIO buttons, and two-column GPIO layout. This is a runnable Qt desktop interface with real controls and live Matrix rain.
 
@@ -65,7 +65,7 @@ assets/dragon.png / dragon.ico Dragon branding and Windows icon
 assets/Preview-Desktop.png     Actual app render at 1672×941
 assets/Preview-4K.png          Actual app render at 3840×2160
 PurpleDragon.spec              PyInstaller Windows build recipe
-tests/                        73 GUI, setup, navigation, connection, console and packaging checks
+tests/                        77 GUI, setup, navigation, connection, console, layout and packaging checks
 ```
 
 Run tests: `python -m unittest discover -s tests -v`.
@@ -88,7 +88,7 @@ Corrected installation guidance, updated creator credits and Help Center text, a
 
 ## Repository and release
 
-[GitHub](https://github.com/bubblegump30/PurpleDragonFlipperStudio) · [v0.3.3 release notes](docs/RELEASE-v0.3.3.md) · [MIT license](LICENSE)
+[GitHub](https://github.com/bubblegump30/PurpleDragonFlipperStudio) · [v0.3.4 release notes](docs/RELEASE-v0.3.4.md) · [MIT license](LICENSE)
 
 The Windows build workflow runs tests, builds the executable, and uploads matching release files as an Actions artifact. It does not publish a release automatically. See [release instructions](docs/GITHUB-UPLOAD.md).
 
@@ -99,3 +99,7 @@ The connected serial port is checked every 1.5 seconds. A disappeared port disab
 ## v0.3.3 — Console QoL
 
 Save up to 50 local command favorites; Load fills the draft and never sends it. Receive timestamps label serial chunks without modifying raw captured text. Pause display continues capture and Resume shows retained data. Retention is bounded to 200,000 characters and 2,000 receive chunks; the display also keeps at most 2,000 text blocks. Export raw text or timestamped JSON, including paused data. JSON reports whether capture was trimmed. Clear console clears the retained capture. Favorites and timestamp preferences persist locally; the existing settings backup format does not include them.
+
+## v0.3.4 — Workspace Polish
+
+Drag the GPIO panel dividers to resize Pin Control/Presets and Response/Pin Information. Compact windows stack them vertically; wide windows place them side by side. Each layout keeps separate local proportions. Ctrl+Shift+0 resets panel sizes. Ctrl+K opens the workspace selector, Ctrl+F opens Console search, and Ctrl+L reveals the command draft. Added accessible control names, focused tooltips, and cached icons rendered at multiple resolutions for high-DPI displays. Panel proportions are not included in settings backups.

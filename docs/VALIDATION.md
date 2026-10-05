@@ -73,3 +73,7 @@ The initial Windows build found 34 pixels of horizontal overflow in GPIO Lab at 
 ## v0.3.3 validation — 2026-10-05
 
 73 automated tests pass locally. New checks cover favorite persistence and no-send loading, corrupt-store preservation, pause capture/resume, timestamp/raw separation, bounded retention and clearing, and text/JSON exports during pause. Compact console controls were visually checked at 980×760. Windows build validation is separate from physical hardware integration.
+
+## v0.3.4 validation — 2026-10-05
+
+77 automated tests passed locally. New checks cover splitter orientation, independent compact/wide settings, restart/reset, invalid settings recovery, keyboard focus and no-send navigation. Offscreen workspace checks passed at 150% and 200% display scale; actual UI renders were inspected. Physical hardware integration remains unverified.
