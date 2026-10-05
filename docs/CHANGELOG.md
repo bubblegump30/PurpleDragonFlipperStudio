@@ -73,3 +73,7 @@ Corrected release installation guidance and creator credit; added matching sourc
 ## v0.3.2 — Connection Center
 
 Added port-loss monitoring, send disablement on loss, manual Retry/Reconnect, pre-open selected-port checks, actionable error guidance, selectable Connection details, and explicit diagnostic connection states.
+
+## v0.3.3 — Console QoL
+
+Added persistent command favorites, receive timestamp toggle, bounded capture while display is paused, resume catch-up, raw text and timestamped JSON exports, capture trimming metadata, and exact line-ending preservation in atomic exports.

@@ -3,6 +3,7 @@ import os
 import platform
 import sys
 import tempfile
+from collections import deque
 import PySide6
 import serial
 from datetime import datetime
@@ -47,6 +48,9 @@ class WorkspaceServices(QMainWindow):
     def build_console(self, lay):
         box, b = panel('Serial console')
         b.addWidget(label('Incoming serial text appears here. Send transmits your text exactly with the selected line ending. No commands are sent automatically.', 'muted'))
+        self.transcript_records = deque()
+        self.transcript_characters = 0
+        self.transcript_trimmed = False
         self.console = QPlainTextEdit()
         self.console.setReadOnly(True)
         self.console.document().setMaximumBlockCount(2000)
@@ -74,7 +78,7 @@ class WorkspaceServices(QMainWindow):
         row.addWidget(self.send_btn)
         b.addLayout(row)
         utility = QHBoxLayout()
-        utility.addWidget(button('Clear console', self.console.clear))
+        utility.addWidget(button('Clear console', self.clear_console))
         utility.addWidget(button('Export transcript', self.export_console))
         self.console_scroll = QCheckBox('Auto scroll')
         self.console_scroll.setChecked(self.settings.value('console_scroll', True, type=bool))
@@ -83,6 +87,29 @@ class WorkspaceServices(QMainWindow):
         utility.addWidget(button('Clear command history', self.clear_command_history))
         utility.addStretch()
         b.addLayout(utility)
+        display = QHBoxLayout()
+        self.console_timestamps = QCheckBox('Receive timestamps')
+        self.console_timestamps.setToolTip('Timestamp received chunks; serial reads may split a device line.')
+        self.console_timestamps.setChecked(self.settings.value('console_timestamps', False, type=bool))
+        self.console_timestamps.toggled.connect(self.toggle_console_timestamps)
+        self.console_pause = QCheckBox('Pause display')
+        self.console_pause.toggled.connect(self.toggle_console_pause)
+        self.capture_status = label('Live · bounded capture', 'muted')
+        display.addWidget(self.console_timestamps)
+        display.addWidget(self.console_pause)
+        display.addWidget(self.capture_status)
+        display.addStretch()
+        b.addLayout(display)
+        favorites = QHBoxLayout()
+        self.command_favorites = QComboBox()
+        self.command_favorites.setMinimumWidth(180)
+        self.command_favorites.setToolTip('Saved commands stay local. Load fills the draft without sending.')
+        favorites.addWidget(self.command_favorites, 1)
+        favorites.addWidget(button('Save favorite', self.save_command_favorite))
+        favorites.addWidget(button('Load', self.load_command_favorite))
+        favorites.addWidget(button('Remove', self.remove_command_favorite))
+        b.addLayout(favorites)
+        self.refresh_command_favorites()
         search_row = QHBoxLayout()
         self.console_search = QLineEdit()
         self.console_search.setPlaceholderText('Find text in transcript…')
@@ -450,15 +477,113 @@ class WorkspaceServices(QMainWindow):
             found = self.console.find(query, flags)
         self.search_feedback.setText('Match' if found else 'No match')
 
+    def favorite_commands(self):
+        data = json.loads(self.settings.value('command_favorites', '[]'))
+        if not isinstance(data, list) or len(data) > 50 or any(not isinstance(x, str) or not x.strip() or len(x) > 1024 for x in data):
+            raise ValueError('Invalid saved favorites; existing data has been preserved.')
+        return list(dict.fromkeys(data))
+
+    def refresh_command_favorites(self, selected=None):
+        self.command_favorites.clear()
+        self.command_favorites.addItem('Saved command favorites', None)
+        try:
+            commands = self.favorite_commands()
+        except (ValueError, TypeError):
+            self.command_favorites.setToolTip('Saved favorites could not be read. Existing data is preserved.')
+            return
+        for command in commands:
+            caption = command.replace('\r', ' ').replace('\n', ' ')
+            self.command_favorites.addItem(caption[:60], command)
+            self.command_favorites.setItemData(self.command_favorites.count()-1, command, Qt.ItemDataRole.ToolTipRole)
+        index = self.command_favorites.findData(selected)
+        self.command_favorites.setCurrentIndex(max(0, index))
+
+    def save_command_favorite(self):
+        text = self.command.text()
+        if not text.strip():
+            return
+        try:
+            commands = self.favorite_commands()
+            if text not in commands:
+                if len(commands) >= 50:
+                    raise ValueError('Favorites are limited to 50 commands. Remove one before adding another.')
+                commands.append(text)
+            self.settings.setValue('command_favorites', json.dumps(commands))
+            self.refresh_command_favorites(text)
+        except (ValueError, TypeError) as exc:
+            self.notify('Favorites', str(exc))
+
+    def load_command_favorite(self):
+        text = self.command_favorites.currentData()
+        if text is not None:
+            self.command.setText(text)
+            self.command.setFocus()
+
+    def remove_command_favorite(self):
+        text = self.command_favorites.currentData()
+        if text is None:
+            return
+        try:
+            commands = self.favorite_commands()
+            commands.remove(text)
+            self.settings.setValue('command_favorites', json.dumps(commands))
+            self.refresh_command_favorites()
+        except (ValueError, TypeError) as exc:
+            self.notify('Favorites', str(exc))
+
+    def raw_transcript(self):
+        return ''.join(record['text'] for record in self.transcript_records)
+
+    def display_record(self, record):
+        if self.console_timestamps.isChecked():
+            return '[' + record['received_at'] + '] ' + record['text'] + ('\n' if not record['text'].endswith('\n') else '')
+        return record['text']
+
+    def render_transcript(self):
+        self.console.setPlainText(''.join(self.display_record(r) for r in self.transcript_records))
+        if self.console_scroll.isChecked():
+            self.console.moveCursor(QTextCursor.MoveOperation.End)
+
+    def toggle_console_timestamps(self, checked):
+        self.settings.setValue('console_timestamps', checked)
+        if not self.console_pause.isChecked():
+            self.render_transcript()
+
+    def toggle_console_pause(self, paused):
+        self.capture_status.setText('Paused · still capturing' if paused else 'Live · bounded capture')
+        if not paused:
+            self.render_transcript()
+
+    def clear_console(self):
+        self.transcript_records.clear()
+        self.transcript_characters = 0
+        self.transcript_trimmed = False
+        self.console.clear()
+
     def receive(self, text):
+        if not text:
+            return
+        if len(text) > 200000:
+            text = text[-200000:]
+            self.transcript_trimmed = True
+        record = {'received_at': datetime.now().astimezone().isoformat(timespec='milliseconds'), 'text': text}
+        self.transcript_records.append(record)
+        self.transcript_characters += len(text)
+        trimmed = False
+        while len(self.transcript_records) > 2000 or self.transcript_characters > 200000:
+            self.transcript_characters -= len(self.transcript_records.popleft()['text'])
+            trimmed = self.transcript_trimmed = True
+        if self.console_pause.isChecked():
+            return
+        if trimmed:
+            self.render_transcript()
+            return
         scrollbar = self.console.verticalScrollBar()
         old_position = scrollbar.value()
         selection = self.console.textCursor()
         cursor = QTextCursor(self.console.document())
         cursor.movePosition(QTextCursor.MoveOperation.End)
-        cursor.insertText(text)
-        if self.console.document().characterCount() > 250000:
-            self.console.setPlainText(self.console.toPlainText()[-180000:])
+        cursor.insertText(self.display_record(record))
         if self.console_scroll.isChecked():
             self.console.setTextCursor(cursor)
             self.console.ensureCursorVisible()
@@ -613,7 +738,7 @@ class WorkspaceServices(QMainWindow):
         target = Path(path)
         temporary = None
         try:
-            with tempfile.NamedTemporaryFile(mode='w', encoding='utf-8', dir=target.parent,
+            with tempfile.NamedTemporaryFile(mode='w', encoding='utf-8', newline='', dir=target.parent,
                                              prefix='.purple-dragon-', suffix='.tmp', delete=False) as output:
                 temporary = Path(output.name)
                 output.write(content)
@@ -661,7 +786,20 @@ class WorkspaceServices(QMainWindow):
                 self.notify('Export failed', str(exc))
 
     def export_console(self):
-        self.export_text(self.console.toPlainText(), 'Export console', 'console-transcript.txt', 'Text files (*.txt)')
+        path, selected = QFileDialog.getSaveFileName(self, 'Export captured transcript', 'console-transcript.txt', 'Plain text (*.txt);;Timestamped JSON (*.json)')
+        if not path:
+            return
+        try:
+            if 'JSON' in selected or Path(path).suffix.lower() == '.json':
+                content = json.dumps({'format': 'purple-dragon-transcript', 'schema': 1, 'version': __version__,
+                                      'exported_at': datetime.now().astimezone().isoformat(),
+                                      'trimmed': self.transcript_trimmed, 'records': list(self.transcript_records)}, indent=2)
+            else:
+                content = self.raw_transcript()
+            self.atomic_write_text(path, content)
+            self.log('Exported captured transcript.')
+        except (OSError, UnicodeError) as exc:
+            self.notify('Export failed', str(exc))
 
     def export_log(self):
         self.export_text('\n'.join(entry[1] for entry in self.log_entries), 'Export session log', 'purple-dragon-session.txt', 'Text files (*.txt)')

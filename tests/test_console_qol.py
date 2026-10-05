@@ -1,5 +1,8 @@
 import unittest
-from unittest.mock import Mock
+import json
+from pathlib import Path
+from PySide6.QtWidgets import QFileDialog
+from unittest.mock import Mock, patch
 from PySide6.QtCore import Qt
 from PySide6.QtTest import QTest
 import test_navigation_memory as navigation
@@ -54,3 +57,80 @@ class ConsoleQoLTests(unittest.TestCase):
         self.w.console_search.setText('alpha');self.w.find_console()
         self.w.receive(' gamma')
         self.assertEqual(self.w.console.textCursor().selectedText(),'alpha')
+
+    def test_favorites_persist_and_load_never_sends(self):
+        self.w.command.setText('status')
+        self.w.save_command_favorite()
+        self.w.save_command_favorite()
+        self.assertEqual(self.w.favorite_commands(), ['status'])
+        self.w.close(); self.w = self.create_window()
+        self.w.session = Mock()
+        self.w.command_favorites.setCurrentIndex(1)
+        self.w.load_command_favorite()
+        self.assertEqual(self.w.command.text(), 'status')
+        self.w.session.send.assert_not_called()
+        self.w.session = None
+        self.w.remove_command_favorite()
+        self.assertEqual(self.w.favorite_commands(), [])
+
+    def test_corrupt_favorites_preserved(self):
+        self.w.settings.setValue('command_favorites', '{bad')
+        self.w.command.setText('help')
+        with patch.object(self.w, 'notify') as notice:
+            self.w.save_command_favorite()
+        notice.assert_called_once()
+        self.assertEqual(self.w.settings.value('command_favorites'), '{bad')
+
+    def test_pause_captures_and_resume_renders_without_send(self):
+        self.w.receive('before')
+        self.w.console_pause.setChecked(True)
+        self.w.receive(' during')
+        self.assertEqual(self.w.console.toPlainText(), 'before')
+        self.assertEqual(self.w.raw_transcript(), 'before during')
+        self.w.console_pause.setChecked(False)
+        self.assertEqual(self.w.console.toPlainText(), 'before during')
+        self.assertIsNone(self.w.session)
+
+    def test_timestamps_do_not_change_raw_and_restore(self):
+        self.w.receive('split')
+        self.w.receive(' line\r\n')
+        self.w.console_timestamps.setChecked(True)
+        self.assertIn('received_at', self.w.transcript_records[0])
+        self.assertIn('[', self.w.console.toPlainText())
+        self.assertEqual(self.w.raw_transcript(), 'split line\r\n')
+        self.w.console_timestamps.setChecked(False)
+        self.assertEqual(self.w.console.toPlainText(), 'split line\n')
+        self.w.console_timestamps.setChecked(True)
+        self.w.close(); self.w = self.create_window()
+        self.assertTrue(self.w.console_timestamps.isChecked())
+        self.assertFalse(self.w.console_pause.isChecked())
+
+    def test_pause_capture_bounded_and_clear(self):
+        self.w.console_pause.setChecked(True)
+        for i in range(2005):
+            self.w.receive('x')
+        self.assertEqual(len(self.w.transcript_records), 2000)
+        self.assertTrue(self.w.transcript_trimmed)
+        self.w.receive('y' * 200001)
+        self.assertLessEqual(self.w.transcript_characters, 200000)
+        self.w.clear_console()
+        self.w.console_pause.setChecked(False)
+        self.assertEqual(self.w.raw_transcript(), '')
+        self.assertFalse(self.w.transcript_trimmed)
+
+    def test_export_captures_paused_data_as_raw_or_json(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as folder:
+            self.w.console_pause.setChecked(True)
+            self.w.receive('alpha\r\nbeta')
+            raw = Path(folder) / 'capture.txt'
+            with patch.object(QFileDialog, 'getSaveFileName', return_value=(str(raw), 'Plain text (*.txt)')):
+                self.w.export_console()
+            self.assertEqual(raw.read_bytes(), b'alpha\r\nbeta')
+            structured = Path(folder) / 'capture.json'
+            with patch.object(QFileDialog, 'getSaveFileName', return_value=(str(structured), 'Timestamped JSON (*.json)')):
+                self.w.export_console()
+            data = json.loads(structured.read_text())
+            self.assertEqual(data['records'][0]['text'], 'alpha\r\nbeta')
+            self.assertIn('received_at', data['records'][0])
+            self.assertFalse(data['trimmed'])
