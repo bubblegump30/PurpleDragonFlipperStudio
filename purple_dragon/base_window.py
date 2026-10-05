@@ -102,6 +102,7 @@ class WorkspaceServices(QMainWindow):
         self.device_details.setTextFormat(Qt.TextFormat.PlainText)
         self.device_details.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         b.addWidget(self.device_details)
+        b.addWidget(button('Connection details', self.show_connection_details))
         b.addWidget(label('Battery, firmware, SD storage and device name require the device protocol adapter. Values will appear only after successful queries.', 'muted'))
         lay.addWidget(box)
 
@@ -226,6 +227,45 @@ class WorkspaceServices(QMainWindow):
         self.connection_message.setText(message)
         self.connection_message.setToolTip(message)
 
+    def show_connection_details(self):
+        message = self.connection_message.toolTip() + '\n\n' + self.device_details.text()
+        if self.last_connection_error:
+            message += '\n\nOriginal error: ' + self.last_connection_error
+        box = QMessageBox(self)
+        box.setWindowTitle('Connection details')
+        box.setTextFormat(Qt.TextFormat.PlainText)
+        box.setText(message)
+        box.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        box.exec()
+
+    def monitor_connection(self):
+        if not self.connected or self.session is None or self.connection_cancelled or self.connection_lost:
+            return
+        try:
+            available = {p.device for p in discover_ports()}
+        except Exception:
+            return  # Discovery failure is not evidence that the device was unplugged.
+        if self.session.port not in available:
+            self.connection_lost = True
+            self.connection_state = 'lost'
+            self.connected = False
+            self.send_btn.setEnabled(False)
+            self.badge.setText('○  CONNECTION LOST')
+            self.last_connection_error = 'USB serial port disappeared. Reconnect the USB cable, then Retry.'
+            self.connection_feedback(self.last_connection_error)
+            self.log(self.last_connection_error, 'Error')
+            self.session.requestInterruption()
+
+    def error_guidance(self, message):
+        value = message.lower()
+        if self.connection_lost or any(t in value for t in ('disconnected', 'device not connected', 'no such file', 'cannot find')):
+            return 'Check the USB data cable, reconnect the device, then Retry.'
+        if any(t in value for t in ('permission', 'access is denied', 'access denied', 'busy')):
+            return 'Close qFlipper and other serial tools using this port, then Retry.'
+        if 'timeout' in value or 'timed out' in value:
+            return 'The serial operation timed out. Check USB and the selected baud rate, then Retry.'
+        return 'Check USB and close other serial tools, then Retry. Open Device → Connection details for the full error.'
+
     def save_port_preferences(self, *_):
         port = self.port.currentData()
         if port and self.session is None:
@@ -287,13 +327,15 @@ class WorkspaceServices(QMainWindow):
 
     def serial_fault(self, message):
         self.last_connection_error = message
+        self.connection_state = 'lost' if self.connection_lost else 'error'
         self.send_btn.setEnabled(False)
         self.log('Serial error: ' + message, 'Error')
-        self.connection_feedback('Serial error: ' + message + '. Close other serial tools, check USB, refresh and retry.')
+        self.connection_feedback('Serial error: ' + message + '. ' + self.error_guidance(message))
 
     def toggle_connection(self):
         if self.session is not None:
             self.connection_cancelled = True
+            self.connection_state = "closing"
             self.send_btn.setEnabled(False)
             self.badge.setText('○  DISCONNECTING')
             self.connection_feedback('Closing serial transport…')
@@ -304,8 +346,21 @@ class WorkspaceServices(QMainWindow):
         port = self.port.currentData()
         if not port:
             return
+        # Retry only the explicitly selected port; never switch to another device.
+        try:
+            available = {p.device for p in discover_ports()}
+        except Exception as exc:
+            self.serial_fault('Port discovery failed: ' + str(exc))
+            return
+        if port not in available:
+            self.serial_fault('Selected port is unavailable. Reconnect USB or Refresh and select a port.')
+            self.connect_btn.setText('Retry')
+            return
         self.last_connection_error = None
         self.connection_cancelled = False
+        self.connection_lost = False
+        self.connection_state = 'opening'
+        self.last_session_port = port
         self.save_port_preferences()
         self.settings.setValue('port', port)
         self.settings.setValue('mode', self.mode.currentText())
@@ -323,9 +378,10 @@ class WorkspaceServices(QMainWindow):
         self.session.start()
 
     def serial_opened(self):
-        if self.connection_cancelled:
+        if self.connection_cancelled or self.connection_lost or self.last_connection_error:
             return
         self.connected = True
+        self.connection_state = "connected"
         self.badge.setText('●  SERIAL CONNECTED')
         self.connect_btn.setText('Disconnect')
         self.send_btn.setEnabled(True)
@@ -340,12 +396,16 @@ class WorkspaceServices(QMainWindow):
         self.log('Serial transport connected: ' + self.port.currentData())
 
     def serial_finished(self):
+        if self.connected and not self.connection_cancelled and not self.last_connection_error:
+            self.connection_lost = True
+            self.last_connection_error = 'Serial transport closed unexpectedly.'
         session, self.session = self.session, None
         if session:
             session.deleteLater()
         self.connected = False
+        self.connection_state = 'lost' if self.connection_lost else ('error' if self.last_connection_error else 'disconnected')
         self.badge.setText('●  DISCONNECTED')
-        self.connect_btn.setText('Retry' if self.last_connection_error else 'Connect')
+        self.connect_btn.setText('Retry' if self.last_connection_error else ('Reconnect' if self.last_session_port else 'Connect'))
         self.connect_btn.setEnabled(bool(self.port.currentData()))
         self.send_btn.setEnabled(False)
         for control in [self.port, self.mode, self.baud, self.refresh_btn]:
@@ -353,8 +413,8 @@ class WorkspaceServices(QMainWindow):
         self.metrics['CONNECTION'].setText('Offline')
         self.device_details.setText('Disconnected. Reconnect to view current port metadata.')
         if self.last_connection_error:
-            self.badge.setText('○  CONNECTION ERROR')
-            self.connection_feedback('Serial error: ' + self.last_connection_error + '. Close other serial tools, check USB, refresh and retry.')
+            self.badge.setText('○  CONNECTION LOST' if self.connection_lost else '○  CONNECTION ERROR')
+            self.connection_feedback('Serial error: ' + self.last_connection_error + '. ' + self.error_guidance(self.last_connection_error))
         else:
             self.connection_feedback('Disconnected. Select a port to reconnect.')
         self.log('Serial transport closed.')
@@ -579,7 +639,7 @@ class WorkspaceServices(QMainWindow):
             'runtime': {'python': platform.python_version(), 'platform': sys.platform,
                         'pyside6': PySide6.__version__, 'pyserial': serial.__version__},
             'workspace': self.workspace.currentText(), 'theme': self.theme.currentText(),
-            'connection': {'state': 'connected' if self.connected else ('opening_or_closing' if self.session else 'disconnected'),
+            'connection': {'state': self.connection_state,
                            'detected_port_count': len(self.port_info), 'last_error_present': bool(self.last_connection_error)},
             'settings': {'status': self.settings.status().name, 'preset_store_valid': error is None,
                          'preset_count': len(self.profiles()) if error is None else None},
@@ -813,6 +873,7 @@ class WorkspaceServices(QMainWindow):
                 event.ignore()
                 self.connection_message.setText('Waiting for the serial worker to finish. Close again shortly.')
                 return
+        self.connection_timer.stop()
         self.settings.sync()
         self.rain.timer.stop()
         event.accept()

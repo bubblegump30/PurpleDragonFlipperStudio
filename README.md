@@ -1,6 +1,6 @@
 # PurpleDragonFlipperStudio
 
-Neon GUI v0.3.1 · Created by KyleAustinHillier @PurpleDragonFoundationLtd
+Neon GUI v0.3.2 · Created by KyleAustinHillier @PurpleDragonFoundationLtd
 
 Rebuilt around your supplied neon-console design: the illustrated brush-style header, dragon and Flipper artwork, compact connection bar, sidebar and horizontal workspace tabs, purple outer frame, blue inner frames, multicolor illuminated GPIO buttons, and two-column GPIO layout. This is a runnable Qt desktop interface with real controls and live Matrix rain.
 
@@ -65,7 +65,7 @@ assets/dragon.png / dragon.ico Dragon branding and Windows icon
 assets/Preview-Desktop.png     Actual app render at 1672×941
 assets/Preview-4K.png          Actual app render at 3840×2160
 PurpleDragon.spec              PyInstaller Windows build recipe
-tests/                        63 GUI, setup, navigation and packaging checks
+tests/                        67 GUI, setup, navigation, connection and packaging checks
 ```
 
 Run tests: `python -m unittest discover -s tests -v`.
@@ -88,6 +88,10 @@ Corrected installation guidance, updated creator credits and Help Center text, a
 
 ## Repository and release
 
-[GitHub](https://github.com/bubblegump30/PurpleDragonFlipperStudio) · [v0.3.1 release notes](docs/RELEASE-v0.3.1.md) · [MIT license](LICENSE)
+[GitHub](https://github.com/bubblegump30/PurpleDragonFlipperStudio) · [v0.3.2 release notes](docs/RELEASE-v0.3.2.md) · [MIT license](LICENSE)
 
 The Windows build workflow runs tests, builds the executable, and uploads matching release files as an Actions artifact. It does not publish a release automatically. See [release instructions](docs/GITHUB-UPLOAD.md).
+
+## v0.3.2 — Connection Center
+
+The connected serial port is checked every 1.5 seconds. A disappeared port disables sending and stops the worker; a discovery error alone does not disconnect it. Retry checks the selected port without switching to another device. Manual disconnect offers Reconnect. Device → Connection details shows selectable status, metadata, and the original error, with guidance for busy ports and timeouts. Reconnection never sends commands automatically.

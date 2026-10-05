@@ -1,5 +1,5 @@
 """Dense neon console layout derived from the user's supplied visual reference."""
-from PySide6.QtCore import Qt, QSettings
+from PySide6.QtCore import Qt, QSettings, QTimer
 from PySide6.QtGui import QIcon, QPixmap, QPainter, QColor, QAction, QKeySequence
 from PySide6.QtWidgets import (
     QApplication,QMainWindow,QWidget,QFrame,QLabel,QVBoxLayout,QHBoxLayout,QGridLayout,
@@ -22,6 +22,7 @@ class MainWindow(base.WorkspaceServices):
         self.adapter=adapter or HardwareAdapter()
         self.session=None;self.connected=False;self.port_info={}
         self.last_connection_error=None;self.connection_cancelled=False
+        self.connection_state="disconnected";self.connection_lost=False;self.last_session_port=None
         self.navigation_history=[];self.navigation_cursor=-1;self.shortcut_actions={}
         self.setWindowTitle('Purple Dragon | Flipper GPIO & UART Lab • GUI '+__version__)
         self.setWindowIcon(QIcon(str(ASSETS/'dragon.ico')))
@@ -81,6 +82,10 @@ class MainWindow(base.WorkspaceServices):
         self.mode.currentTextChanged.connect(self.save_port_preferences)
         self.baud.currentTextChanged.connect(self.save_port_preferences)
         self.apply_theme();self.reflow();self.refresh_ports()
+        self.connection_timer=QTimer(self)
+        self.connection_timer.setInterval(1500)
+        self.connection_timer.timeout.connect(self.monitor_connection)
+        self.connection_timer.start()
         self.install_shortcuts()
         last=self.settings.value('last_workspace','Command Center')
         self.navigate(last if isinstance(last,str) and last in self.pages else 'Command Center')

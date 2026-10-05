@@ -69,3 +69,7 @@ Consolidates v0.2.1–v0.2.9 and adds a searchable, reusable Help Center from F1
 ## v0.3.1 — Release Cleanup
 
 Corrected release installation guidance and creator credit; added matching source/Windows archive packaging with SHA-256 checksums and commit manifest. Updated Help Center release information.
+
+## v0.3.2 — Connection Center
+
+Added port-loss monitoring, send disablement on loss, manual Retry/Reconnect, pre-open selected-port checks, actionable error guidance, selectable Connection details, and explicit diagnostic connection states.

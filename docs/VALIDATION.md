@@ -65,3 +65,7 @@ The initial Windows build found 34 pixels of horizontal overflow in GPIO Lab at 
 ## v0.3.1 validation — 2026-10-05
 
 63 automated tests passed with Qt offscreen on Linux. Release packaging regression checks verify matching commit metadata, both archive checksums, Windows support files, exclusion of untracked data, and rejection of uncommitted tracked changes. Windows v0.3.1 packaging and on-device validation remain pending.
+
+## v0.3.2 validation — 2026-10-05
+
+67 automated tests pass locally. New mocked-transport checks cover unplug loss, worker interruption, late-open suppression, discovery-failure tolerance, selected-port retry, manual reconnect, and error guidance. Physical USB unplug/replug and v0.3.2 Windows packaging require separate validation.

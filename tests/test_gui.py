@@ -108,7 +108,7 @@ class GuiTests(unittest.TestCase):
         info = SimpleNamespace(device='COM_TEST', description='Test', manufacturer=None, serial_number=None)
         with patch('purple_dragon.base_window.discover_ports', return_value=[info]):
             self.window.refresh_ports()
-        with patch('purple_dragon.backend.serial.Serial', side_effect=serial.SerialException('port busy')):
+        with patch('purple_dragon.base_window.discover_ports', return_value=[info]), patch('purple_dragon.backend.serial.Serial', side_effect=serial.SerialException('port busy')):
             self.window.toggle_connection()
             self.pump(lambda: self.window.session is None)
         self.assertFalse(self.window.connected)

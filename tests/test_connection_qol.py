@@ -1,7 +1,7 @@
 import os
 os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
 from types import SimpleNamespace
-from unittest.mock import patch
+from unittest.mock import patch, Mock
 import test_navigation_memory as navigation
 import unittest
 
@@ -46,3 +46,51 @@ class ConnectionQoLTests(unittest.TestCase):
         self.assertFalse(self.w.connected)
         self.assertFalse(self.w.send_btn.isEnabled())
 
+
+    def test_unplug_disables_send_and_stops_worker_once(self):
+        self.refresh()
+        worker = Mock(port='COM3')
+        self.w.session = worker
+        self.w.serial_opened()
+        with patch('purple_dragon.base_window.discover_ports', return_value=[]):
+            self.w.monitor_connection()
+            self.w.monitor_connection()
+        self.assertFalse(self.w.connected)
+        self.assertFalse(self.w.send_btn.isEnabled())
+        self.assertEqual(self.w.connection_state, 'lost')
+        worker.requestInterruption.assert_called_once()
+        self.w.serial_opened()
+        self.assertFalse(self.w.connected)
+        self.w.serial_finished()
+        self.assertEqual(self.w.connect_btn.text(), 'Retry')
+        self.assertIn('LOST', self.w.badge.text())
+
+    def test_monitor_discovery_error_does_not_disconnect(self):
+        self.refresh()
+        worker = Mock(port='COM3')
+        self.w.session = worker
+        self.w.serial_opened()
+        with patch('purple_dragon.base_window.discover_ports', side_effect=OSError('temporary discovery error')):
+            self.w.monitor_connection()
+        self.assertTrue(self.w.connected)
+        worker.requestInterruption.assert_not_called()
+        self.w.connection_cancelled = True
+        self.w.serial_finished()
+
+    def test_retry_missing_port_never_opens_other_device(self):
+        self.refresh()
+        with patch('purple_dragon.base_window.discover_ports', return_value=[self.ports()[1]]), patch('purple_dragon.base_window.SerialSession') as factory:
+            self.w.toggle_connection()
+        factory.assert_not_called()
+        self.assertEqual(self.w.port.currentData(), 'COM3')
+        self.assertIn('unavailable', self.w.connection_message.text())
+
+    def test_manual_reconnect_and_actionable_errors(self):
+        self.refresh()
+        self.w.last_session_port = 'COM3'
+        self.w.connection_cancelled = True
+        self.w.serial_finished()
+        self.assertEqual(self.w.connect_btn.text(), 'Reconnect')
+        self.w.serial_fault('Access is denied')
+        self.assertIn('qFlipper', self.w.connection_message.toolTip())
+        self.assertIn('timed out', self.w.error_guidance('write timeout'))
