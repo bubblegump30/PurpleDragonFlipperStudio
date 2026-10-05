@@ -18,5 +18,5 @@ class HelpCenterTests(unittest.TestCase):
         dialog.search.clear();self.assertTrue(dialog.topic.isEnabled())
     def test_capability_guidance_and_no_send(self):
         self.w.beginner_guide();dialog=self.w.help_center;dialog.topic.setCurrentText('Release and capabilities')
-        self.assertIn('require RC7',dialog.text.toPlainText());self.assertIn('outstanding',dialog.text.toPlainText())
+        self.assertIn('require RC7',dialog.text.toPlainText());self.assertIn('Physical hardware integration remains unverified',dialog.text.toPlainText())
         self.assertIsNone(self.w.session)

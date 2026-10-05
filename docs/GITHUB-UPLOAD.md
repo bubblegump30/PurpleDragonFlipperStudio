@@ -1,30 +1,14 @@
-# Initial GitHub upload
+# Release procedure
 
-Target: https://github.com/bubblegump30/PurpleDragonFlipperStudio
+1. Commit the release changes on main and allow the Windows build workflow to pass.
+2. Download the Actions artifact. Extract it to obtain the Source ZIP, Windows-x64 ZIP, SHA256SUMS.txt, and release-manifest.json.
+3. Confirm the manifest commit matches the successful workflow commit. Test the Windows ZIP after extracting it, keeping _internal beside the executable.
+4. In PowerShell, run `Get-FileHash *.zip -Algorithm SHA256` and compare both archive hashes with SHA256SUMS.txt.
+5. Create a release tag at that exact commit. Paste the matching release notes and attach all four files. Never attach an older source ZIP to a newer Windows build.
 
-The connected repository was empty when this package was prepared. No remote changes have been made.
+The repository is MIT licensed. Dependencies retain their upstream licenses. Hardware integration is separate from executable packaging and remains unverified.
 
-Extract this package, open PowerShell inside its top-level folder, and run:
+Local source-only packaging: `python scripts/package_release.py --output release-assets`.
+Local packaging with an existing Windows build: `python scripts/package_release.py --windows dist/PurpleDragonFlipperStudio --output release-assets`.
 
-```powershell
-git init -b main
-git add .
-git status --short
-git commit -m "Add PurpleDragonFlipperStudio v0.3.0"
-git remote add origin https://github.com/bubblegump30/PurpleDragonFlipperStudio.git
-git push -u origin main
-```
-
-Git may ask for your author identity and GitHub sign-in. Set your preferred identity if prompted. If the repository has acquired commits since preparation, fetch and review them before uploading; do not force-push.
-
-After upload, open Actions → Windows build → Run workflow. The workflow runs the tests, builds on Windows, and provides a Windows executable-folder artifact. A successful workflow is packaging evidence, not physical-device verification.
-
-Create a draft/pre-release for tag v0.3.0 using docs/RELEASE-v0.3.0.md only when ready. Attach the complete source ZIP. Attach a Windows artifact only after reviewing the build and testing it locally.
-
-Suggested About description: Neon-themed Windows desktop companion for Flipper serial workflows, local GPIO presets, IR inspection, settings backups and diagnostics.
-
-Suggested website: https://www.purpledragonfoundationltd.xyz/
-
-Suggested topics: flipper-zero, python, pyside6, windows, serial, uart, desktop-app, neon-ui.
-
-No project license was selected in the supplied source. Decide the distribution license before advertising this as open source; dependencies and supplied artwork retain their applicable rights.
+Packaging requires committed tracked changes. Source archives include only Git-tracked files. Untracked files and local settings are excluded.

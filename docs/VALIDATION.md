@@ -61,3 +61,7 @@ Three Help Center tests cover reusable dialog opening without changing workspace
 ## Windows compact-layout correction
 
 The initial Windows build found 34 pixels of horizontal overflow in GPIO Lab at the compact size. Pin controls now wrap into a three-column grid and the checkbox labels stack on compact windows. The desktop row is restored when expanding. A regression test covers both arrangements. All 62 tests pass locally. Windows Actions run 36694327173 passed the test suite, built the executable folder and uploaded the Windows artifact. Physical-device and interactive Windows checks remain outstanding.
+
+## v0.3.1 validation — 2026-10-05
+
+63 automated tests passed with Qt offscreen on Linux. Release packaging regression checks verify matching commit metadata, both archive checksums, Windows support files, exclusion of untracked data, and rejection of uncommitted tracked changes. Windows v0.3.1 packaging and on-device validation remain pending.

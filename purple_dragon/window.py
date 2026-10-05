@@ -74,7 +74,7 @@ class MainWindow(base.WorkspaceServices):
         self.activity=label('','muted');self.activity.setMaximumHeight(22)
         self.activity.setTextFormat(Qt.TextFormat.PlainText);body.addWidget(self.activity)
         self.statusBar().setSizeGripEnabled(True)
-        self.statusBar().showMessage('Created by KyleAustin85 • Purple Dragon Foundation • GUI '+__version__)
+        self.statusBar().showMessage('Neon GUI v'+__version__+' · Created by KyleAustinHillier @PurpleDragonFoundationLtd')
         self.inline_theme.currentTextChanged.connect(self.change_inline_theme)
         self.workspace.currentTextChanged.connect(self.workspace_changed)
         self.port.currentIndexChanged.connect(self.port_selected)
@@ -264,7 +264,7 @@ class MainWindow(base.WorkspaceServices):
         self.export_text(self.history.toPlainText(),'Export GPIO history','gpio-history.txt','Text files (*.txt)')
 
     def about(self):
-        self.notify('Purple Dragon','Purple Dragon GPIO & UART Lab\nNeon GUI v'+__version__+'\nCreated by KyleAustin85\nPurple Dragon Foundation\n\nRebuilt around your supplied neon-console design.\n'+WEBSITE)
+        self.notify('Purple Dragon','Purple Dragon GPIO & UART Lab\nNeon GUI v'+__version__+'\nCreated by KyleAustinHillier @PurpleDragonFoundationLtd\n\nRebuilt around your supplied neon-console design.\n'+WEBSITE)
 
     def workspace_changed(self,name):
         self.navigate(name)

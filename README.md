@@ -1,20 +1,18 @@
 # PurpleDragonFlipperStudio
 
-Neon GUI v0.3.0 · Created by KyleAustinHillier @PurpleDragonFoundationLtd
+Neon GUI v0.3.1 · Created by KyleAustinHillier @PurpleDragonFoundationLtd
 
 Rebuilt around your supplied neon-console design: the illustrated brush-style header, dragon and Flipper artwork, compact connection bar, sidebar and horizontal workspace tabs, purple outer frame, blue inner frames, multicolor illuminated GPIO buttons, and two-column GPIO layout. This is a runnable Qt desktop interface with real controls and live Matrix rain.
 
 ![PurpleDragonFlipperStudio desktop](assets/Preview-Desktop.png)
 
-## Run on Windows 11
+## Run on Windows
 
-1. Extract this ZIP into a **new folder**.
-2. Double-click **Setup.bat**. It supports standard 64-bit CPython **3.10–3.14**, selects a compatible installation, and downloads the pinned dependencies.
-3. Double-click **Start.bat**.
+Download the Windows x64 ZIP from [Releases](https://github.com/bubblegump30/PurpleDragonFlipperStudio/releases). Extract the entire archive into a new folder, then run **PurpleDragonFlipperStudio.exe**. Keep **_internal** beside the executable. No separate Python installation is required for that package.
 
-If Python is absent, install it from https://www.python.org/downloads/windows/ and enable the Python launcher. Use the standard build, rather than the free-threaded build. Setup preserves an incompatible `.venv` folder before rebuilding. **Debug-Launch.bat** displays launch errors. No administrator rights are needed.
+For source development, use the matching Source ZIP, run **Setup.bat**, then **Start.bat**. Setup supports standard 64-bit CPython **3.10–3.14**. **Debug-Launch.bat** displays launch errors. No administrator rights are needed.
 
-This release reuses your saved user settings. On first use, it applies the stronger Matrix brightness/speed defaults for the new design. Theme, reduced motion, and other preferences remain available in **Themes**.
+Export a settings backup before upgrading. Existing saved user settings are reused.
 
 ## Visual design
 
@@ -49,7 +47,7 @@ Run **Build-Windows.bat** on Windows. It produces:
 
 `dist/PurpleDragonFlipperStudio/PurpleDragonFlipperStudio.exe`
 
-Distribute the entire output folder, including `_internal`. This source ZIP does not contain a prebuilt Windows executable. The native Windows build and physical device operations need verification on your PC.
+Distribute the entire output folder, including `_internal`. This source ZIP does not contain a prebuilt Windows executable. Windows packaging passed for v0.3.0; each new package must pass its build checks. Physical device integration remains unverified.
 
 ## Files
 
@@ -67,7 +65,7 @@ assets/dragon.png / dragon.ico Dragon branding and Windows icon
 assets/Preview-Desktop.png     Actual app render at 1672×941
 assets/Preview-4K.png          Actual app render at 3840×2160
 PurpleDragon.spec              PyInstaller Windows build recipe
-tests/                        62 GUI, setup and navigation checks
+tests/                        63 GUI, setup, navigation and packaging checks
 ```
 
 Run tests: `python -m unittest discover -s tests -v`.
@@ -82,10 +80,14 @@ Press **F1** or open **Backup & Tools → Help Center** for searchable local gui
 
 [Release history](docs/CHANGELOG.md) · [Validation and remaining checks](docs/VALIDATION.md) · [Hardware integration](docs/INTEGRATION.md)
 
-To upgrade, extract into a new folder. Existing user settings are reused. Export a settings backup before changing installations. Restoring a backup replaces its included settings and presets after confirmation. This is a source release; native Windows and device verification remain outstanding.
+To upgrade, extract into a new folder. Existing user settings are reused. Export a settings backup before changing installations. Restoring a backup replaces its included settings and presets after confirmation. Source and Windows release archives should come from the same commit. Physical device integration remains unverified.
+
+## v0.3.1 — Release Cleanup
+
+Corrected installation guidance, updated creator credits and Help Center text, and added release packaging that produces source and Windows ZIPs from one clean Git commit. Each build includes archive SHA-256 checksums and a manifest identifying the commit.
 
 ## Repository and release
 
-[GitHub](https://github.com/bubblegump30/PurpleDragonFlipperStudio) · [v0.3.0 release notes](docs/RELEASE-v0.3.0.md)
+[GitHub](https://github.com/bubblegump30/PurpleDragonFlipperStudio) · [v0.3.1 release notes](docs/RELEASE-v0.3.1.md) · [MIT license](LICENSE)
 
-The manual Windows build workflow runs the test suite and packages an executable folder as an Actions artifact. It does not publish a release. Download and test that artifact on Windows before distributing it.
+The Windows build workflow runs tests, builds the executable, and uploads matching release files as an Actions artifact. It does not publish a release automatically. See [release instructions](docs/GITHUB-UPLOAD.md).

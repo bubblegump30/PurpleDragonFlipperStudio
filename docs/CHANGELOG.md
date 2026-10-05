@@ -65,3 +65,7 @@ Invalid saved preset data is preserved: saving/importing presets and exporting s
 ## v0.3.0 — QoL Release & Help Center
 
 Consolidates v0.2.1–v0.2.9 and adds a searchable, reusable Help Center from F1 or Backup & Tools. Topics cover setup, shortcuts, presets, backups, console/log tools, IR inspection, troubleshooting, diagnostics and current integration limits. README is consolidated; prior details remain in this changelog. Native Windows and hardware verification remain outstanding.
+
+## v0.3.1 — Release Cleanup
+
+Corrected release installation guidance and creator credit; added matching source/Windows archive packaging with SHA-256 checksums and commit manifest. Updated Help Center release information.

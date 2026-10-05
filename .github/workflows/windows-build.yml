@@ -6,6 +6,7 @@ on:
     paths:
       - 'purple_dragon/**'
       - 'tests/**'
+      - 'scripts/**'
       - 'requirements.txt'
       - 'PurpleDragon.spec'
       - '.github/workflows/windows-build.yml'
@@ -28,9 +29,11 @@ jobs:
         run: python -m unittest discover -s tests -v
       - name: Build executable folder
         run: python -m PyInstaller --clean --noconfirm PurpleDragon.spec
-      - name: Upload Windows artifact
+      - name: Package matching release assets
+        run: python scripts/package_release.py --windows dist/PurpleDragonFlipperStudio --output release-assets
+      - name: Upload release assets
         uses: actions/upload-artifact@v6
         with:
-          name: PurpleDragonFlipperStudio-v0.3.0-Windows-x64
-          path: dist/PurpleDragonFlipperStudio/
+          name: PurpleDragonFlipperStudio-release-${{ github.sha }}
+          path: release-assets/
           if-no-files-found: error
