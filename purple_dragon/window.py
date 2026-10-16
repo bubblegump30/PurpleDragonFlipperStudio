@@ -15,6 +15,7 @@ from .theme import THEMES, stylesheet
 from .neon import NeonButton,NeonPanel,HeaderArt,ChipArt,panel,button,icon
 from .matrix import MatrixRain
 from . import __version__
+from .data_io import setting_int
 
 class MainWindow(base.WorkspaceServices):
     def __init__(self,adapter=None,settings=None):
@@ -29,7 +30,7 @@ class MainWindow(base.WorkspaceServices):
         self.setWindowTitle('Purple Dragon | Flipper GPIO & UART Lab • GUI '+__version__)
         self.setWindowIcon(QIcon(str(ASSETS/'dragon.ico')))
         self.resize(1672,941);self.setMinimumSize(980,760)
-        if self.settings.value('design_revision',0,type=int)<2:
+        if setting_int(self.settings,'design_revision',0,0,100)<2:
             self.settings.setValue('intensity',85)
             self.settings.setValue('speed',70)
             self.settings.setValue('design_revision',2)
@@ -88,13 +89,17 @@ class MainWindow(base.WorkspaceServices):
         self.connection_timer.setInterval(1500)
         self.connection_timer.timeout.connect(self.monitor_connection)
         self.connection_timer.start()
+        for combo in (self.profile,self.ir_libraries,self.ir_signals,self.command_favorites):
+            combo.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon)
+            combo.setMinimumContentsLength(12)
         self.install_shortcuts()
         last=self.settings.value('last_workspace','Command Center')
         self.navigate(last if isinstance(last,str) and last in self.pages else 'Command Center')
         self.geometry_restored=False
         geometry=self.settings.value('window_geometry')
         if geometry:
-            self.geometry_restored=self.restoreGeometry(geometry)
+            try:self.geometry_restored=self.restoreGeometry(geometry)
+            except (TypeError,ValueError):self.geometry_restored=False
             if not any(screen.availableGeometry().intersects(self.frameGeometry()) for screen in QApplication.screens()):
                 self.move(QApplication.primaryScreen().availableGeometry().topLeft())
         self.log('Ready • Identify in CLI mode, then check support in the GPIO, IR or SD workspace.')
@@ -127,7 +132,7 @@ class MainWindow(base.WorkspaceServices):
         self.port=QComboBox();self.port.setMinimumWidth(110);self.port.setMaximumWidth(185)
         self.port.setToolTip('Select a detected USB serial port.')
         self.refresh_btn=NeonButton('Refresh',self.refresh_ports,'blue','refresh');self.refresh_btn.setFixedWidth(108)
-        self.mode=QComboBox();self.mode.addItems(['CLI','UART Bridge']);self.mode.setCurrentText(self.settings.value('mode','CLI'))
+        self.mode=QComboBox();self.mode.addItems(['CLI','UART Bridge']);self.mode.setCurrentText(str(self.settings.value('mode','CLI')))
         self.mode.setMinimumWidth(86);self.mode.setMaximumWidth(120)
         self.mode.setToolTip('Bridge configuration requires the device backend or configuration on the device.')
         self.baud=QComboBox();self.baud.addItems(['9600','19200','38400','57600','115200','230400','460800','921600'])
@@ -141,7 +146,7 @@ class MainWindow(base.WorkspaceServices):
         self.connection_message.setTextFormat(Qt.TextFormat.PlainText)
         self.connection_message.setMaximumHeight(26)
         self.connection_message.setMaximumWidth(194)
-        self.inline_theme=QComboBox();self.inline_theme.addItems(THEMES);self.inline_theme.setCurrentText(self.settings.value('theme','Neo Purple'))
+        self.inline_theme=QComboBox();self.inline_theme.addItems(THEMES);self.inline_theme.setCurrentText(str(self.settings.value('theme','Neo Purple')))
         for i,(name,color) in enumerate(THEMES.items()):
             pix=QPixmap(18,18);pix.fill(Qt.GlobalColor.transparent)
             paint=QPainter(pix);paint.setRenderHint(QPainter.RenderHint.Antialiasing);paint.setBrush(QColor(color));paint.setPen(Qt.PenStyle.NoPen);paint.drawEllipse(2,2,14,14);paint.end()
@@ -196,7 +201,7 @@ class MainWindow(base.WorkspaceServices):
         self.gpio_top_splitter.splitterMoved.connect(lambda *_: self.save_workspace_panels())
         upper.addWidget(self.gpio_top_splitter)
         pins,p=panel();p.setSpacing(7)
-        p.addWidget(label('♟  Pin Control','sectionTitle'))
+        p.addWidget(label('Pin Control','sectionTitle'))
         controls=QGridLayout();controls.setSpacing(5)
         self.gpio_controls=controls
         self.pin=QComboBox();self.pin.setMinimumWidth(130)
@@ -218,14 +223,14 @@ class MainWindow(base.WorkspaceServices):
         self.poll.setToolTip("Polling requires the GPIO backend and a verified device session.")
         self.gpio_pin_layout=p
         self.gpio_top_splitter.addWidget(pins)
-        presets,p=panel();p.setSpacing(7);p.addWidget(label('⚙  Setup & Presets','sectionTitle'))
+        presets,p=panel();p.setSpacing(7);p.addWidget(label('Setup & Presets','sectionTitle'))
         row=QHBoxLayout();row.setSpacing(5)
         self.profile=QComboBox();self.profile.setEditable(True);self.profile.setMinimumWidth(100)
         self.profile_name=self.profile.lineEdit();self.profile_name.setPlaceholderText('Setup name…')
         row.addWidget(self.profile,2)
         row.addWidget(NeonButton('Save Setup',self.save_profile,'purple','save'),1)
         row.addWidget(NeonButton('Delete',self.delete_profile,'neutral','trash'),1);p.addLayout(row)
-        note=QHBoxLayout();note.addWidget(label('▤  Note'))
+        note=QHBoxLayout();note.addWidget(label('Note'))
         self.notes=QPlainTextEdit();self.notes.setPlaceholderText('Add a note about this setup…');self.notes.setFixedHeight(42)
         note.addWidget(self.notes,1);p.addLayout(note)
         actions=QHBoxLayout();actions.setSpacing(5)
@@ -244,14 +249,14 @@ class MainWindow(base.WorkspaceServices):
         self.gpio_info_splitter.splitterMoved.connect(lambda *_: self.save_workspace_panels())
         middle.addWidget(self.gpio_info_splitter)
         response,r=panel();r.setSpacing(4)
-        response_header=QHBoxLayout();response_header.addWidget(label('⌁  Latest GPIO Response','sectionTitle'),1)
+        response_header=QHBoxLayout();response_header.addWidget(label('Latest GPIO Response','sectionTitle'),1)
         clear=NeonButton('Clear',lambda:self.gpio_response.clear(),'neutral','trash');clear.setFixedSize(91,36);response_header.addWidget(clear)
         r.addLayout(response_header)
         self.gpio_response=QPlainTextEdit();self.gpio_response.setObjectName('gpioResponse');self.gpio_response.setReadOnly(True)
         self.gpio_response.setMinimumHeight(97);self.gpio_response.setMaximumHeight(130)
         self.gpio_response.setPlainText('Choose a pin and connect to view its response.\n[INFO] Use Input before Read; use Output and arm before LOW/HIGH.\n[INFO] Only connect 3.3 V compatible circuitry. Check GPIO support before use.')
         r.addWidget(self.gpio_response);self.gpio_info_splitter.addWidget(response)
-        info,inf=panel();inf.setSpacing(4);inf.addWidget(label('ⓘ  Pin Information','sectionTitle'))
+        info,inf=panel();inf.setSpacing(4);inf.addWidget(label('Pin Information','sectionTitle'))
         info_body=QHBoxLayout();grid=QGridLayout();grid.setVerticalSpacing(3)
         self.pin_value=label(self.pin.currentText());self.pin_value.setObjectName('pinValue')
         self.gpio_mode_value=label('Unknown');self.gpio_state_value=label('Unknown');self.gpio_direction_value=label('Unknown')
@@ -260,7 +265,7 @@ class MainWindow(base.WorkspaceServices):
         info_body.addLayout(grid,3);chip=ChipArt(kind='blue');chip.setMinimumSize(115,100);info_body.addWidget(chip,2)
         inf.addLayout(info_body);self.gpio_info_splitter.addWidget(info);w.addLayout(middle)
         history,h=panel();h.setSpacing(3)
-        tools=QHBoxLayout();tools.addWidget(label('☷  Input History','sectionTitle'),1)
+        tools=QHBoxLayout();tools.addWidget(label('Input History','sectionTitle'),1)
         export_btn=NeonButton('Export',self.export_history,'neutral','list');export_btn.setFixedSize(104,36);tools.addWidget(export_btn)
         clear_btn=NeonButton('Clear',lambda:self.history.clear(),'neutral','trash');clear_btn.setFixedSize(95,36);tools.addWidget(clear_btn)
         self.autoscroll=QCheckBox('Auto Scroll');self.autoscroll.setChecked(True);tools.addWidget(self.autoscroll)

@@ -21,6 +21,7 @@ from .sd_manager import SDManagerMixin
 from .ir_workspace import IRWorkspaceMixin
 from .gpio_workbench import GPIOWorkbenchMixin
 from .compatibility import compatibility_snapshot
+from .data_io import load_json, read_text, setting_int
 from .matrix import MatrixRain
 from .ir_files import inspect_ir
 from .theme import THEMES, stylesheet
@@ -33,6 +34,7 @@ WEBSITE = 'https://www.purpledragonfoundationltd.xyz/'
 
 def label(text, role=None):
     item = QLabel(text)
+    item.setTextFormat(Qt.TextFormat.PlainText)
     if role:
         item.setObjectName(role)
     item.setWordWrap(True)
@@ -196,7 +198,7 @@ class WorkspaceServices(GPIOWorkbenchMixin, IRWorkspaceMixin, SDManagerMixin, QM
         if not self.session.request_device_info():
             self.identity_status.setText('Serial output is busy. Wait for queued commands to finish, then retry.')
             return
-        self.sd_last_error = ''
+        self.sd_last_error = self.backup_last_error = self.ir_last_error = ''
         self.reset_gpio_session()
         self.reset_ir_session()
         self.reset_sd_manager()
@@ -294,7 +296,7 @@ class WorkspaceServices(GPIOWorkbenchMixin, IRWorkspaceMixin, SDManagerMixin, QM
         b.addWidget(label('COLOR PALETTE', 'eyebrow'))
         self.theme = QComboBox()
         self.theme.addItems(THEMES)
-        self.theme.setCurrentText(self.settings.value('theme', 'Neo Purple'))
+        self.theme.setCurrentText(str(self.settings.value('theme', 'Neo Purple')))
         b.addWidget(self.theme)
         self.animation = QCheckBox('Live Matrix background')
         self.animation.setChecked(self.settings.value('matrix', True, type=bool))
@@ -306,10 +308,10 @@ class WorkspaceServices(GPIOWorkbenchMixin, IRWorkspaceMixin, SDManagerMixin, QM
             b.addWidget(control)
         self.intensity = QSlider(Qt.Orientation.Horizontal)
         self.intensity.setRange(5, 90)
-        self.intensity.setValue(self.settings.value('intensity', 32, type=int))
+        self.intensity.setValue(setting_int(self.settings,'intensity',32,5,90))
         self.speed = QSlider(Qt.Orientation.Horizontal)
         self.speed.setRange(10, 150)
-        self.speed.setValue(self.settings.value('speed', 55, type=int))
+        self.speed.setValue(setting_int(self.settings,'speed',55,10,150))
         b.addWidget(label('MATRIX BRIGHTNESS', 'eyebrow'))
         b.addWidget(self.intensity)
         b.addWidget(label('RAIN SPEED', 'eyebrow'))
@@ -503,6 +505,7 @@ class WorkspaceServices(GPIOWorkbenchMixin, IRWorkspaceMixin, SDManagerMixin, QM
         if self.connection_cancelled or self.connection_lost or self.last_connection_error:
             return
         self.connected = True
+        self.sd_last_error = self.backup_last_error = self.ir_last_error = ''
         self.reset_device_identity()
         self.identify_btn.setEnabled(self.mode.currentText() == "CLI")
         self.connection_state = "connected"
@@ -577,7 +580,7 @@ class WorkspaceServices(GPIOWorkbenchMixin, IRWorkspaceMixin, SDManagerMixin, QM
         self.search_feedback.setText('Match' if found else 'No match')
 
     def favorite_commands(self):
-        data = json.loads(self.settings.value('command_favorites', '[]'))
+        data = load_json(self.settings.value('command_favorites', '[]'),300000)
         if not isinstance(data, list) or len(data) > 50 or any(not isinstance(x, str) or not x.strip() or len(x) > 1024 for x in data):
             raise ValueError('Invalid saved favorites; existing data has been preserved.')
         return list(dict.fromkeys(data))
@@ -713,7 +716,7 @@ class WorkspaceServices(GPIOWorkbenchMixin, IRWorkspaceMixin, SDManagerMixin, QM
 
     def profiles(self):
         try:
-            data = json.loads(self.settings.value('profiles', '{}'))
+            data = load_json(self.settings.value('profiles', '{}'))
             return self.validate_profiles(data)
         except (ValueError, TypeError):
             return {}
@@ -723,10 +726,12 @@ class WorkspaceServices(GPIOWorkbenchMixin, IRWorkspaceMixin, SDManagerMixin, QM
         if not isinstance(data, dict) or len(data) > 200:
             raise ValueError('Expected an object containing up to 200 setups.')
         for name, entry in data.items():
-            if not isinstance(name, str) or not name.strip() or len(name) > 120:
+            if not isinstance(name, str) or not name.strip() or len(name) > 120 or any(ord(c)<32 or ord(c)==127 for c in name):
                 raise ValueError('Invalid setup name.')
-            if not isinstance(entry, dict) or not isinstance(entry.get('pin'), str) or not isinstance(entry.get('notes'), str) or len(entry['notes']) > 100000:
+            if not isinstance(entry, dict) or set(entry)!={'pin','notes'} or not isinstance(entry.get('pin'), str) or not isinstance(entry.get('notes'), str) or len(entry['notes']) > 100000:
                 raise ValueError('Each setup must contain text pin and notes fields.')
+        if len(json.dumps(data,ensure_ascii=False).encode('utf-8'))>5_000_000:
+            raise ValueError('Saved setups exceed the 5 MB limit.')
         return data
 
     def refresh_profiles(self, selected=None):
@@ -735,6 +740,7 @@ class WorkspaceServices(GPIOWorkbenchMixin, IRWorkspaceMixin, SDManagerMixin, QM
         self.profile.addItem('New setup', None)
         for name in sorted(self.profiles()):
             self.profile.addItem(name, name)
+            self.profile.setItemData(self.profile.count()-1,name,Qt.ItemDataRole.ToolTipRole)
         idx = self.profile.findData(selected)
         self.profile.setCurrentIndex(max(0, idx))
         self.profile.blockSignals(False)
@@ -755,6 +761,9 @@ class WorkspaceServices(GPIOWorkbenchMixin, IRWorkspaceMixin, SDManagerMixin, QM
         self.profile_feedback.setText('New local setup · Enter a name, choose a pin and save.')
 
     def duplicate_profile(self):
+        if self.profile_store_error():
+            self.notify('Saved setups need recovery','Existing saved data is invalid and has been preserved. Restore a valid settings backup first.')
+            return
         data = self.profiles()
         original = self.profile.currentData()
         if original not in data:
@@ -770,12 +779,18 @@ class WorkspaceServices(GPIOWorkbenchMixin, IRWorkspaceMixin, SDManagerMixin, QM
             name = stem + ' ' + str(index)
             index += 1
         data[name] = dict(data[original])
+        try:self.validate_profiles(data)
+        except ValueError as exc:
+            self.notify('Setup could not be duplicated',str(exc));return
         self.settings.setValue('profiles', json.dumps(data))
         self.refresh_profiles(name)
         self.profile_feedback.setText('Duplicated: ' + name)
         self.log('Duplicated local setup: ' + name)
 
     def rename_profile(self):
+        if self.profile_store_error():
+            self.notify('Saved setups need recovery','Existing saved data is invalid and has been preserved. Restore a valid settings backup first.')
+            return
         original = self.profile.currentData()
         name = self.profile_name.text().strip()
         data = self.profiles()
@@ -792,6 +807,9 @@ class WorkspaceServices(GPIOWorkbenchMixin, IRWorkspaceMixin, SDManagerMixin, QM
             self.notify('Name already used', 'Choose a unique name to rename this setup.')
             return
         data[name] = data.pop(original)
+        try:self.validate_profiles(data)
+        except ValueError as exc:
+            self.notify('Setup name',str(exc));return
         self.settings.setValue('profiles', json.dumps(data))
         self.refresh_profiles(name)
         self.profile_feedback.setText('Renamed: ' + name)
@@ -821,6 +839,9 @@ class WorkspaceServices(GPIOWorkbenchMixin, IRWorkspaceMixin, SDManagerMixin, QM
         self.profile_feedback.setText('Saved locally: ' + name)
 
     def delete_profile(self):
+        if self.profile_store_error():
+            self.notify('Saved setups need recovery','Existing saved data is invalid and has been preserved. Restore a valid settings backup first.')
+            return
         name = self.profile.currentData()
         if not name:
             return
@@ -850,7 +871,7 @@ class WorkspaceServices(GPIOWorkbenchMixin, IRWorkspaceMixin, SDManagerMixin, QM
 
     def profile_store_error(self):
         try:
-            self.validate_profiles(json.loads(self.settings.value('profiles', '{}')))
+            self.validate_profiles(load_json(self.settings.value('profiles', '{}')))
         except (ValueError, TypeError) as exc:
             return str(exc)
         return None
@@ -883,7 +904,7 @@ class WorkspaceServices(GPIOWorkbenchMixin, IRWorkspaceMixin, SDManagerMixin, QM
             try:
                 self.atomic_write_text(path, content)
                 self.log('Export saved: ' + Path(path).name)
-            except OSError as exc:
+            except (OSError,UnicodeError) as exc:
                 self.notify('Export failed', str(exc))
 
     def export_console(self):
@@ -969,7 +990,7 @@ class WorkspaceServices(GPIOWorkbenchMixin, IRWorkspaceMixin, SDManagerMixin, QM
         try:
             if Path(path).stat().st_size > 5_000_000:
                 raise ValueError('Settings backup exceeds the 5 MB limit.')
-            data = self.validate_settings_backup(json.loads(Path(path).read_text(encoding='utf-8')))
+            data = self.validate_settings_backup(load_json(read_text(path,5_000_000)))
             summary = f'Replace local presets with {len(data["profiles"])} saved setups and restore appearance, console preferences and workspace?'
             if QMessageBox.question(self, 'Restore settings backup', summary, QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No) != QMessageBox.StandardButton.Yes:
                 return
@@ -978,6 +999,9 @@ class WorkspaceServices(GPIOWorkbenchMixin, IRWorkspaceMixin, SDManagerMixin, QM
             self.notify('Restore failed', str(exc))
 
     def export_profiles(self):
+        if self.profile_store_error():
+            self.notify('Saved setups need recovery','Existing saved data is invalid and has been preserved. Restore a valid settings backup first.')
+            return
         self.export_text(json.dumps(self.profiles(), indent=2), 'Export setups', 'gpio-setups.json', 'JSON (*.json)')
 
     def import_profiles(self):
@@ -990,7 +1014,7 @@ class WorkspaceServices(GPIOWorkbenchMixin, IRWorkspaceMixin, SDManagerMixin, QM
         try:
             if Path(path).stat().st_size > 2_000_000:
                 raise ValueError('Setup file must be smaller than 2 MB.')
-            data = self.validate_profiles(json.loads(Path(path).read_text(encoding='utf-8')))
+            data = self.validate_profiles(load_json(read_text(path,2_000_000),2_000_000))
             existing = self.profiles()
             conflicts = set(existing).intersection(data)
             if conflicts:
@@ -1012,7 +1036,7 @@ class WorkspaceServices(GPIOWorkbenchMixin, IRWorkspaceMixin, SDManagerMixin, QM
         try:
             if Path(path).stat().st_size > 1_000_000:
                 raise ValueError('Preview files must be smaller than 1 MB.')
-            text=Path(path).read_text(encoding='utf-8-sig')
+            text=read_text(path,1_000_000)
             self.load_ir_text(text,Path(path).name)
             self.log('Previewing infrared file: ' + Path(path).name)
         except (ValueError, OSError, UnicodeError) as exc:
@@ -1025,6 +1049,7 @@ class WorkspaceServices(GPIOWorkbenchMixin, IRWorkspaceMixin, SDManagerMixin, QM
         for entry in self.ir_entries:
             if query in entry['name'].casefold():
                 self.ir_signals.addItem(entry['name'] or '(unnamed)', entry['line'])
+                self.ir_signals.setItemData(self.ir_signals.count()-1,entry['name'],Qt.ItemDataRole.ToolTipRole)
         self.ir_signals.blockSignals(False)
         self.select_ir_signal()
 
@@ -1067,6 +1092,7 @@ class WorkspaceServices(GPIOWorkbenchMixin, IRWorkspaceMixin, SDManagerMixin, QM
         self.log_entries = self.log_entries[-1000:]
         self.render_log()
         self.activity.setText('LATEST ACTIVITY  /  ' + message)
+        self.activity.setToolTip(message)
         self.statusBar().showMessage(message)
 
     def notify(self, title, message):
@@ -1104,6 +1130,8 @@ class WorkspaceServices(GPIOWorkbenchMixin, IRWorkspaceMixin, SDManagerMixin, QM
     def closeEvent(self, event):
         self.reset_gpio_session()
         if self.session is not None:
+            self.connection_cancelled=True;self.connection_state='closing'
+            self.reset_device_identity();self.send_btn.setEnabled(False);self.connect_btn.setEnabled(False)
             self.session.requestInterruption()
             if not self.session.wait(1600):
                 event.ignore()

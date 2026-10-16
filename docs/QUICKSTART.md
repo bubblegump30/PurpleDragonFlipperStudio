@@ -1,6 +1,6 @@
 # PurpleDragonFlipperStudio 1.0 — Start here
 
-Neon GUI v1.0.1 · Created by KyleAustinHillier @PurpleDragonFoundationLtd
+Neon GUI v1.0.2 · Created by KyleAustinHillier @PurpleDragonFoundationLtd
 
 ## Install and open
 
@@ -49,3 +49,7 @@ This checks archive integrity, structure and package metadata; it is not a code 
 This is an independent Flipper Zero companion. The 1.0 desktop software release consolidates tested UI, transport and protocol workflows; physical GPIO, IR, SD and firmware compatibility remain unverified on hardware. Supported adapters require device_info major 2, Flipper Zero target 7, documented command responses and a plain unprefixed >: prompt. No app installation, battery telemetry, ADC, PWM or power switching. No wireless-board flashing is performed by these workflows.
 
 Project code: MIT. See LICENSE.txt, DEPENDENCIES.md and licenses/ for dependency notices.
+
+## Local data validation in 1.0.2
+
+JSON imports and stores reject duplicate keys, non-finite numbers, invalid Unicode, excessive integer lengths and nesting beyond 32 levels. GPIO setups contain only pin and notes fields and are bounded to 5 MB in total. Invalid saved stores are preserved; preset mutations/exports are blocked until recovered from a valid backup. Local compatibility checks now include command favorites.

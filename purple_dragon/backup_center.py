@@ -73,7 +73,7 @@ class BackupCenterMixin:
 
     def start_backup_job(self, operation, path, local):
         if not self.sd_ready() or not self.sd_available or self.sd_busy: return
-        self.backup_last_error = ''; self.backup_plan = None
+        self.backup_last_error = ''; self.backup_plan = None; self.backup_preview.clear()
         self.backup_status.setText('Working… Preflight, verification and file transfer share one worker. Cancel disconnects safely.')
         self.backup_progress.setValue(0)
         self.start_sd_operation(operation, path, local)

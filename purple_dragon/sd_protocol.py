@@ -77,7 +77,7 @@ class StorageClient:
         while data:
             self.check(deadline)
             written = self.stream.write(data[:1024])
-            if not written or written > min(1024, len(data)):
+            if type(written) is not int or not 1<=written<=min(1024,len(data)):
                 raise StorageError('Incomplete serial write.')
             data = data[written:]
 
@@ -121,7 +121,10 @@ class StorageClient:
     def command(self, verb, path, extra=''):
         sd_path(path)
         self.header('storage ' + verb + ' "' + path + '"' + (' ' + extra if extra else ''))
-        return self.finish()
+        body=self.finish()
+        if verb in ('mkdir','remove','copy') and body.strip():
+            raise StorageError('Unrecognized storage mutation response: '+body.decode('utf-8',errors='replace')[:300])
+        return body
 
     def listing(self, path):
         return parse_listing(self.checked(self.command('list', path)))
@@ -160,11 +163,13 @@ class StorageClient:
         digest = hashlib.md5(data).hexdigest()
         if self.md5(remote) != digest:
             raise StorageError('Download checksum mismatch; destination was preserved.')
+        self.check(self.overall)
         target = Path(local)
         temporary = None
         try:
             with tempfile.NamedTemporaryFile(dir=target.parent, prefix='.pd-download-', delete=False) as f:
                 temporary = Path(f.name); f.write(data); f.flush(); os.fsync(f.fileno())
+            self.check(self.overall)
             os.replace(temporary, target)
         finally:
             if temporary is not None:

@@ -117,7 +117,7 @@ class NeonButton(QPushButton):
         else:
             grad=QLinearGradient(rect.topLeft(),rect.bottomLeft())
             color=QColor(hue)
-            vivid=self.role in ('primary','purple','cyan','blue','red') or active
+            vivid=self.isEnabled() and (self.role in ('primary','purple','cyan','blue','red') or active)
             if vivid:
                 top=QColor(color);top.setAlpha(130 if not self.isDown() else 70)
                 bottom=QColor(color.darker(330));bottom.setAlpha(235)
@@ -136,6 +136,7 @@ class NeonButton(QPushButton):
         p.setPen(QColor(textcolor))
         font=QFont('Segoe UI',9 if self.compact else 10);font.setWeight(QFont.Weight.DemiBold if not nav else QFont.Weight.Normal);p.setFont(font)
         txt=self.text().replace('&&','&')
+        if not self.isEnabled():p.setOpacity(.7)
         if self.glyph:
             size=23 if nav else 20;x=18 if nav else max(14,int((self.width()-p.fontMetrics().horizontalAdvance(txt)-32)/2))
             if self.compact:size=20;x=12

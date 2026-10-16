@@ -8,6 +8,7 @@ import shutil
 import time
 import tempfile
 import uuid
+from .data_io import load_json
 from .sd_protocol import LIMIT, StorageError, child_path, sd_path
 
 MAX_ENTRIES = 2000
@@ -24,19 +25,22 @@ def relative_path(value):
     return value
 
 
-def verified_payload(folder, entry):
+def verified_payload(folder, entry, check=lambda:None):
+    check()
     folder = Path(folder)
     payload = folder / entry['object']
     if folder.is_symlink() or (folder / 'data').is_symlink() or payload.is_symlink() or not payload.is_file():
         raise StorageError('Invalid or linked backup payload.')
     with payload.open('rb') as stream:
         data = stream.read(LIMIT + 1)
+    check()
     if len(data) != entry['size'] or hashlib.sha256(data).hexdigest() != entry['sha256']:
         raise StorageError('Backup checksum or size mismatch: ' + entry['path'])
     return data
 
 
-def read_backup(folder, allow_incomplete=False):
+def read_backup(folder, allow_incomplete=False, check=lambda:None):
+    check()
     folder = Path(folder)
     if folder.name.casefold().endswith('.incomplete') and not allow_incomplete:
         raise StorageError('Incomplete backups cannot be restored.')
@@ -46,7 +50,7 @@ def read_backup(folder, allow_incomplete=False):
     with manifest_file.open('rb') as stream:
         raw = stream.read(MAX_MANIFEST + 1)
     if len(raw) > MAX_MANIFEST: raise StorageError('Backup manifest exceeds its size limit.')
-    manifest = json.loads(raw)
+    manifest = load_json(raw.decode('utf-8-sig'),MAX_MANIFEST)
     if not isinstance(manifest, dict) or manifest.get('format') != 'purple-dragon-sd-backup' or type(manifest.get('schema')) is not int or manifest['schema'] != 1 or manifest.get('complete') is not True:
         raise StorageError('Unsupported or incomplete backup.')
     sd_path(manifest.get('source'))
@@ -55,12 +59,14 @@ def read_backup(folder, allow_incomplete=False):
         raise StorageError('Backup exceeds entry limits.')
     seen = {}; directory_names = set(); total = 0
     for directory in directories:
+        check()
         relative_path(directory)
         key = directory.casefold()
         if key in seen: raise StorageError('Duplicate backup paths.')
         seen[key] = 'directory'; directory_names.add(key)
     objects = set()
     for entry in files:
+        check()
         if not isinstance(entry, dict) or set(entry) != {'path', 'size', 'sha256', 'object'}:
             raise StorageError('Invalid backup file entry.')
         relative_path(entry['path'])
@@ -75,7 +81,7 @@ def read_backup(folder, allow_incomplete=False):
         if not isinstance(obj, str) or len(obj) != 15 or not obj.startswith('data/') or not obj[5:11].isdigit() or not obj.endswith('.bin') or obj in objects:
             raise StorageError('Invalid backup object reference.')
         objects.add(obj)
-        verified_payload(folder, entry)
+        verified_payload(folder, entry,check)
         total += entry['size']
         if total > MAX_TOTAL: raise StorageError('Backup exceeds the 256 MiB total limit.')
     for key in seen:
@@ -139,7 +145,7 @@ class BackupService:
             self.check()
             with (stage / 'manifest.json').open('w', encoding='utf-8', newline='') as output:
                 json.dump(manifest, output, indent=2); output.write('\n'); output.flush(); os.fsync(output.fileno())
-            read_backup(stage, allow_incomplete=True)  # Re-read and hash all payloads before publishing the backup.
+            read_backup(stage, allow_incomplete=True,check=self.check)  # Re-read and hash all payloads before publishing the backup.
             self.check()
             final = parent / name
             stage.rename(final)
@@ -156,7 +162,7 @@ class BackupService:
         if str(PurePosixPath(target).parent) != '/ext':
             raise StorageError('Restore target must be a new folder directly under /ext.')
         sd_path(target, False)
-        manifest, digest, total = read_backup(folder)
+        manifest, digest, total = read_backup(folder,check=self.check)
         for path in manifest['directories'] + [x['path'] for x in manifest['files']]:
             sd_path(target + '/' + path, False)
         if any(e['name'].casefold() == PurePosixPath(target).name.casefold() for e in self.client.listing('/ext')):
@@ -171,7 +177,7 @@ class BackupService:
         plan = self.preview(request['folder'], request['target'])
         if plan['manifest_digest'] != request['manifest_digest']:
             raise StorageError('Backup manifest changed after preview. Preview it again before restoring.')
-        manifest, digest, _ = read_backup(request['folder'])
+        manifest, digest, _ = read_backup(request['folder'],check=self.check)
         if digest != request['manifest_digest']:
             raise StorageError('Backup manifest changed after preview.')
         root = request['target']; created = False; original_progress = self.client.progress; done = 0
@@ -183,7 +189,7 @@ class BackupService:
                 self.client.checked(self.client.command('mkdir', root + '/' + relative))
             for entry in manifest['files']:
                 self.check()
-                data = verified_payload(request['folder'], entry)
+                data = verified_payload(request['folder'], entry,self.check)
                 self.client.progress = lambda current, size, base=done: original_progress(base + current, plan['bytes'])
                 # Upload a private immutable snapshot of the validated local payload.
                 with tempfile.TemporaryDirectory(prefix='pd-restore-') as temporary:

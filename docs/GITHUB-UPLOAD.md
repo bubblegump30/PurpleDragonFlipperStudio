@@ -5,7 +5,7 @@
 3. Confirm the manifest commit equals the successful workflow commit. In PowerShell, run `Get-FileHash *.zip -Algorithm SHA256` and compare with the trusted checksum list.
 4. From source, optionally run `python scripts/verify_release.py PATH-TO-EXTRACTED-ARTIFACT --expected-commit COMMIT --require-windows`. The verifier reads ZIPs without extracting/executing them. It checks integrity and metadata consistency, not code signatures or trust in an untrusted manifest.
 5. Extract the Windows ZIP into a new folder and test the actual GUI interactively, keeping _internal beside the executable. Check 100%/200% display scaling and your hardware/firmware before making hardware compatibility claims.
-6. Create tag v1.0.1 at the exact verified commit. Paste docs/RELEASE-v1.0.1.md and attach all four files. Do not mix artifacts from different builds. Publication is a separate action; the build workflow never publishes automatically.
+6. Create tag v1.0.2 at the exact verified commit. Paste docs/RELEASE-v1.0.2.md and attach all four files. Do not mix artifacts from different builds. Publication is a separate action; the build workflow never publishes automatically.
 
 Windows ZIP contents include README-FIRST.txt, LICENSE.txt, DEPENDENCIES.md, RELEASE-NOTES.md, licenses/, release-info.json, the executable and _internal. Package metadata records the packaging commit; it is not a digital signature of the binary. CI builds and packages from one checkout.
 

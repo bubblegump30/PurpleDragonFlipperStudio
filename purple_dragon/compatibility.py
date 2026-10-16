@@ -27,6 +27,9 @@ def compatibility_snapshot(window):
     try:window.ir_library_data();valid=True
     except (ValueError,TypeError):valid=False
     checks.append({'area':'IR library store','ok':valid})
+    try:window.favorite_commands();valid=True
+    except (ValueError,TypeError):valid=False
+    checks.append({'area':'Command favorites','ok':valid})
     return {'schema':1,'application':'PurpleDragonFlipperStudio','version':__version__,
             'runtime':{'python':platform.python_version(),'platform':sys.platform,'pyside6':PySide6.__version__,'pyserial':serial.__version__},
             'connection':{'state':window.connection_state,'mode':window.mode.currentText(),'identity':window.device_adapter.state,'busy':bool(window.sd_busy)},

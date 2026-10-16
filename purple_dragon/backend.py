@@ -149,7 +149,7 @@ class SerialSession(QThread):
                             self.query_device_info(stream, decoder)
                         else:
                             self.gpio_state.clear()
-                            stream.write(payload)
+                            StorageClient(stream,self.isInterruptionRequested).write(payload)
                     except queue.Empty:
                         pass
                     if self.isInterruptionRequested():
@@ -158,8 +158,9 @@ class SerialSession(QThread):
                     if data:
                         self.received.emit(decoder.decode(data))
         except (serial.SerialException, OSError, ValueError) as exc:
-            self.fault.emit(str(exc))
+            if not self.isInterruptionRequested():self.fault.emit(str(exc))
         finally:
+            self.requestInterruption()
             self.closed.emit()
 
 

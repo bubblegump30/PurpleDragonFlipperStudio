@@ -113,3 +113,7 @@ Consolidated the public documentation and Help Center, added a quick-start guide
 ## v1.0.1 — Device Identity Hotfix
 
 Accepted the official f7 UID64 length (16 hexadecimal digits) alongside the prior 24-digit representation. Complete unsupported identity replies now leave serial open with hardware controls disabled; timeouts/oversized replies/USB errors still close the session. Added five identity regression tests and updated recovery guidance.
+
+## v1.0.2 — Audit & Polish
+
+Fixed corrupt-preset mutation/export, bounded and hardened JSON/file imports, made backup validation cancellation-aware, preserved local download destinations after cancellation, tightened SD mutation responses and serial writes, hardened shutdown/reconnect state, and corrected stale previews/capabilities. Improved disabled controls, heading glyphs, long-name layout/tooltips and startup settings recovery. Added command-favorite health reporting and 22 regression tests.

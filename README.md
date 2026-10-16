@@ -1,6 +1,6 @@
 # PurpleDragonFlipperStudio
 
-**Neon GUI v1.0.1 · Created by KyleAustinHillier @PurpleDragonFoundationLtd**
+**Neon GUI v1.0.2 · Created by KyleAustinHillier @PurpleDragonFoundationLtd**
 
 A native Qt desktop companion for Flipper Zero with a neon console interface, USB serial tools, digital GPIO Workbench, IR libraries, SD File Manager, verified backups and compatibility reporting.
 
@@ -8,13 +8,17 @@ A native Qt desktop companion for Flipper Zero with a neon console interface, US
 
 *Current v1.0.0 desktop screenshot.*
 
-[Downloads](https://github.com/bubblegump30/PurpleDragonFlipperStudio/releases) · [Quick start](docs/QUICKSTART.md) · [1.0.1 release notes](docs/RELEASE-v1.0.1.md) · [Release history](docs/CHANGELOG.md)
+[Downloads](https://github.com/bubblegump30/PurpleDragonFlipperStudio/releases) · [Quick start](docs/QUICKSTART.md) · [1.0.2 release notes](docs/RELEASE-v1.0.2.md) · [Release history](docs/CHANGELOG.md)
 
 ## Install
 
 Download **Windows-x64.zip**, extract the whole archive into a new folder, and run **PurpleDragonFlipperStudio.exe**. Keep **_internal** beside the executable. No separate Python installation or administrator rights are required. The package includes README-FIRST.txt, release notes and dependency notices.
 
 Source users: run **Setup.bat**, then **Start.bat**. Standard 64-bit CPython 3.10–3.14 is supported by setup; release CI uses Python 3.12. **Debug-Launch.bat** shows launch errors. Export a settings backup before upgrading and export IR libraries separately. Existing local settings are reused.
+
+## Audit & polish — 1.0.2
+
+Hardened local imports and corrupt-store recovery, made backup verification cancellation-aware, tightened SD responses and serial writes, and polished shutdown, reconnect and compact layouts. See the [audit report](docs/AUDIT-v1.0.2.md).
 
 ## Identity hotfix — 1.0.1
 

@@ -7,6 +7,7 @@ from PySide6.QtWidgets import (QLabel, QPlainTextEdit, QComboBox, QLineEdit, QHB
 from .neon import panel, button
 from .ir_files import inspect_ir
 from .ir_protocol import signal_command
+from .data_io import load_json
 
 
 class IRWorkspaceMixin:
@@ -43,7 +44,7 @@ class IRWorkspaceMixin:
     def ir_library_data(self, raw=None):
         if raw is None: raw=self.settings.value('ir_libraries','[]')
         if not isinstance(raw,str) or len(raw.encode('utf-8'))>2100000: raise ValueError('Saved IR library store exceeds its limit.')
-        data=json.loads(raw)
+        data=load_json(raw,2100000)
         if not isinstance(data,list) or len(data)>10: raise ValueError('At most ten IR libraries can be saved.')
         names=set(); total=0
         for item in data:
@@ -67,8 +68,11 @@ class IRWorkspaceMixin:
 
     def refresh_ir_libraries(self):
         self.ir_libraries.clear(); self.ir_libraries.addItem('Saved IR libraries',None)
+        self.ir_libraries.setToolTip('Saved local IR libraries; loading never transmits.')
         try:
-            for item in self.ir_library_data(): self.ir_libraries.addItem(item['title'],item['title'])
+            for item in self.ir_library_data():
+                self.ir_libraries.addItem(item['title'],item['title'])
+                self.ir_libraries.setItemData(self.ir_libraries.count()-1,item['title'],Qt.ItemDataRole.ToolTipRole)
         except (ValueError,TypeError) as exc:
             self.ir_libraries.setToolTip(str(exc))
 
@@ -157,6 +161,7 @@ class IRWorkspaceMixin:
     def reset_ir_session(self):
         if not hasattr(self,'ir_probe_btn'):return
         self.ir_capabilities=None
+        self.device_adapter.capabilities-={'ir_tx'}
         self.ir_status.setText(self.ir_last_error or 'Device IR support has not been checked. Identify and probe again after reconnecting.')
         self.update_ir_controls()
 

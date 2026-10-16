@@ -111,3 +111,7 @@ The first 1.0 Windows run exposed ZIP filename normalization: Windows zipfile no
 ## v1.0.1 identity hotfix — 2026-10-16
 
 177 tests pass locally. Five new synthetic tests cover official UID64 and prior UID96, invalid lengths/hex/target, chunked UID64 replies, nonfatal complete unsupported identity responses, and connected-console/disabled-capability UI state. Existing timeout/cancellation/transport shutdown tests remain. Official firmware source confirms furi_hal_version_uid_size() returns 64/8; the old 24-character requirement was incorrect for that response. The supplied screenshot shows the pre-query connected state, not the post-query error, so the exact device failure still needs a physical retest with this build.
+
+## v1.0.2 audit — 2026-10-16
+
+199 tests cover the baseline plus 22 new audit regressions. New cases exercise strict JSON, bounded BOM-aware reads, numeric fallback, invalid/partial serial writes, unknown SD mutation replies, cancelled download preservation, backup validation cancellation, duplicate manifests, corrupt-store preservation, malformed-store startup, Unicode export errors, preset schema, literal labels, IR reset, stale backup preview, shutdown gates, reconnect errors, long saved names and cancellation without false fault reporting. Actual Qt layout checks cover all pages at compact/desktop sizes at 200% scale. See AUDIT-v1.0.2.md. Physical device testing remains pending.
