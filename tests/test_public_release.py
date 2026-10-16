@@ -29,11 +29,13 @@ class PublicReleaseTests(unittest.TestCase):
     def verify(self,**kwargs):return verify_module.verify(self.output,**kwargs)
     def rewrite_archive(self,name,transform):
         path=self.output/name
-        with zipfile.ZipFile(path) as archive:entries={n:archive.read(n) for n in archive.namelist()};comment=archive.comment
+        with zipfile.ZipFile(path) as archive:entries={info.orig_filename:archive.read(info) for info in archive.infolist()};comment=archive.comment
         transform(entries)
         with zipfile.ZipFile(path,'w') as archive:
             archive.comment=comment
-            for key,value in entries.items():archive.writestr(key,value)
+            for key,value in entries.items():
+                info=zipfile.ZipInfo(key);info.filename=key;info.orig_filename=key
+                archive.writestr(info,value)
         manifest=json.loads((self.output/'release-manifest.json').read_text());manifest['assets'][name]=hashlib.sha256(path.read_bytes()).hexdigest()
         (self.output/'release-manifest.json').write_text(json.dumps(manifest));(self.output/'SHA256SUMS.txt').write_text(''.join(digest+'  '+key+'\n' for key,digest in manifest['assets'].items()))
     def test_round_trip_requires_both_archives_and_matching_commit(self):
@@ -52,7 +54,8 @@ class PublicReleaseTests(unittest.TestCase):
         for bad in ['../outside','/absolute','PurpleDragonFlipperStudio/../outside','PurpleDragonFlipperStudio/./dot','PurpleDragonFlipperStudio\\bad']:
             def add(entries):entries[bad]=b'bad'
             self.rewrite_archive('PurpleDragonFlipperStudio-v1.0.0-Windows-x64.zip',add)
-            with self.assertRaisesRegex(ValueError,'Unsafe'):self.verify()
+            with self.subTest(path=bad),self.assertRaisesRegex(ValueError,'Unsafe'):self.verify()
+            with patch('zipfile.os.sep','\\'),self.assertRaisesRegex(ValueError,'Unsafe'):self.verify()
             self.rewrite_archive('PurpleDragonFlipperStudio-v1.0.0-Windows-x64.zip',lambda entries:entries.pop(bad))
     def test_wrong_windows_commit_metadata_rejected(self):
         self.rewrite_archive('PurpleDragonFlipperStudio-v1.0.0-Windows-x64.zip',lambda entries:entries.update({'PurpleDragonFlipperStudio/release-info.json':json.dumps({'version':'1.0.0','commit':'0'*40}).encode()}))

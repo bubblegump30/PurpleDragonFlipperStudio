@@ -105,3 +105,5 @@ The initial Windows build found 34 pixels of horizontal overflow in GPIO Lab at 
 ## v1.0.0 validation — 2026-10-16
 
 172 automated tests pass locally, including twelve public-release checks for matching archive/commit metadata, included guides, changed payloads, checksum mismatch, unsafe paths, wrong Windows/source versions, incomplete runtime layout, manifest traversal, preflight failures, source-only output and isolated smoke-test arguments. Windows CI now additionally launches the actual packaged executable headlessly with temporary settings, requires a PNG render and clean exit, and verifies source/Windows archives before upload. These workflow results are checked separately from the local tests. Interactive Windows and physical hardware validation remain pending.
+
+The first 1.0 Windows run exposed ZIP filename normalization: Windows zipfile normalizes backslashes in its filename property. Verification now checks the original archive filename before normalization; the fixture preserves the raw ZIP name on every platform. The final workflow must pass with this regression included.

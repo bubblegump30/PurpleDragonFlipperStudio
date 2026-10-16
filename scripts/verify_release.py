@@ -48,8 +48,9 @@ def verify(folder, expected_commit=None, require_windows=False):
             if len(entries)>10000 or sum(x.file_size for x in entries)>2*1024**3:raise ValueError('Archive exceeds verification limits.')
             seen=set()
             for entry in entries:
-                parts=entry.filename.rstrip('/').split('/')
-                if not parts or any(not p for p in parts) or entry.filename.startswith('/') or any(p in ('.','..') for p in parts) or any(c in entry.filename for c in ('\\',':')) or any(ord(c)<32 for c in entry.filename) or stat.S_ISLNK(entry.external_attr>>16):raise ValueError('Unsafe archive path.')
+                raw_name=entry.orig_filename
+                parts=raw_name.rstrip('/').split('/')
+                if not parts or any(not p for p in parts) or raw_name.startswith('/') or any(p in ('.','..') for p in parts) or any(c in raw_name for c in ('\\',':')) or any(ord(c)<32 for c in raw_name) or stat.S_ISLNK(entry.external_attr>>16):raise ValueError('Unsafe archive path.')
                 if entry.filename.casefold() in seen:raise ValueError('Duplicate archive path.')
                 seen.add(entry.filename.casefold())
             if archive.testzip() is not None:raise ValueError('Corrupt archive payload.')
