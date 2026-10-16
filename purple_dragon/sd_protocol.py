@@ -64,6 +64,7 @@ class StorageClient:
         self.buffer = b''
         self.overall = time.monotonic() + 120
         self.staged = None
+        self.gpio_state = {}
 
     def check(self, deadline):
         if self.cancelled():
@@ -206,6 +207,9 @@ class StorageClient:
         return {'bytes': len(data), 'sha256': hashlib.sha256(data).hexdigest()}
 
     def execute(self, operation, path, local=None):
+        if operation in ('gpio_probe', 'gpio_action'):
+            from .gpio_protocol import execute_gpio
+            return execute_gpio(self, operation, local)
         if operation in ('ir_probe','ir_transmit'):
             from .ir_protocol import execute_ir
             return execute_ir(self, operation, local)

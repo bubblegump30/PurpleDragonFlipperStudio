@@ -70,6 +70,7 @@ class SDManagerMixin(BackupCenterMixin):
         self.sd_cancel_btn.setEnabled(bool(self.sd_busy))
         self.update_backup_controls()
         self.update_ir_controls()
+        self.update_gpio_controls()
 
     def reset_sd_manager(self):
         if not hasattr(self, 'sd_tree'): return
@@ -97,6 +98,9 @@ class SDManagerMixin(BackupCenterMixin):
         self.update_sd_controls()
 
     def sd_operation_finished(self, session, result):
+        if result.get('operation') in ('gpio_probe','gpio_action'):
+            self.gpio_operation_finished(session,result)
+            return
         if result.get('operation') in ('ir_probe','ir_transmit'):
             self.ir_operation_finished(session,result)
             return

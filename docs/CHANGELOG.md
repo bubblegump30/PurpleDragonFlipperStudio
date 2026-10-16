@@ -97,3 +97,7 @@ Added bounded recursive SD backups with verified manifest publication, empty-dir
 ## v0.7.0 — IR Workspace
 
 Added named local libraries, stronger IR validation, selected-signal export, explicit IR capability checks and confirmed single-command device transmission. Added little-endian/range checks, bounded raw CLI conversion, busy/error handling and stale-session protection.
+
+## v0.8.0 — GPIO Workbench
+
+Added a digital GPIO CLI adapter for eight regular header pins, explicit support checking, input/read, confirmed Output starting LOW, armed writes, optional one-second input polling, confirmed-response labels and bounded history. Preserved the neon controls and local setups. Commands share serial exclusion; mode tracking is connection-scoped and invalidated by manual sends, refresh and disconnect. No physical reset is claimed on disconnect.

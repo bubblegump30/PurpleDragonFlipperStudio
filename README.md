@@ -1,6 +1,6 @@
 # PurpleDragonFlipperStudio
 
-Neon GUI v0.7.0 · Created by KyleAustinHillier @PurpleDragonFoundationLtd
+Neon GUI v0.8.0 · Created by KyleAustinHillier @PurpleDragonFoundationLtd
 
 Rebuilt around your supplied neon-console design: the illustrated brush-style header, dragon and Flipper artwork, compact connection bar, sidebar and horizontal workspace tabs, purple outer frame, blue inner frames, multicolor illuminated GPIO buttons, and two-column GPIO layout. This is a runnable Qt desktop interface with real controls and live Matrix rain.
 
@@ -35,14 +35,14 @@ Export a settings backup before upgrading. Existing saved user settings are reus
 | SD File Manager | Explicit /ext probe, folder browsing, binary upload/download with integrity checks, folder creation and confirmed non-recursive deletion |
 | Device information | Explicit CLI device_info query, checked Flipper-compatible identity fields, device name/firmware/hardware/protocol values, connection-scoped device_info capability |
 | GPIO setups | Named local experiments, pin choice, notes, save/delete, JSON import/export |
-| GPIO workspace | Reference-based controls, pin information, response area and exportable history pane |
+| GPIO Workbench | Explicit CLI support check, input/output modes, digital reads, armed LOW/HIGH, input polling and bounded exportable history |
 | Appearance | Eight themes, inline theme switching, glow, Matrix controls, persistent settings |
 | IR Workspace | Validated .ir files, named local libraries, whole-file/selected-signal export, explicit capability check and confirmed single-command transmission |
 | Local tools | Console, setup and session-log exports |
 | Navigation | Last-workspace restore, synchronized selectors, keyboard shortcuts, session Back/Forward history |
 | Apps | Official catalog, NFC category, community directory and Foundation website |
 
-Hardware GPIO reads/writes, IR transmission, SD backup, app installation and device telemetry still need the existing RC7 device services. Their controls/data remain gated or unavailable; opening a serial port does not verify Flipper identity. This package does not send automatic device commands. See [docs/INTEGRATION.md](docs/INTEGRATION.md).
+GPIO digital controls, IR transmission, SD files and bounded backups use explicit support checks after CLI identification. App installation and battery telemetry still need integration. Opening a serial port does not verify Flipper identity. No startup hardware commands are sent; optional GPIO polling starts only when explicitly enabled. See [docs/INTEGRATION.md](docs/INTEGRATION.md).
 
 ## Build an executable
 
@@ -68,7 +68,7 @@ assets/dragon.png / dragon.ico Dragon branding and Windows icon
 assets/Preview-Desktop.png     Actual app render at 1672×941
 assets/Preview-4K.png          Actual app render at 3840×2160
 PurpleDragon.spec              PyInstaller Windows build recipe
-tests/                        128 GUI, IR, backup/restore, storage and protocol checks
+tests/                        143 GUI, GPIO, IR, backup/restore, storage and protocol checks
 ```
 
 Run tests: `python -m unittest discover -s tests -v`.
@@ -91,7 +91,7 @@ Corrected installation guidance, updated creator credits and Help Center text, a
 
 ## Repository and release
 
-[GitHub](https://github.com/bubblegump30/PurpleDragonFlipperStudio) · [v0.7.0 release notes](docs/RELEASE-v0.7.0.md) · [MIT license](LICENSE)
+[GitHub](https://github.com/bubblegump30/PurpleDragonFlipperStudio) · [v0.8.0 release notes](docs/RELEASE-v0.8.0.md) · [MIT license](LICENSE)
 
 The Windows build workflow runs tests, builds the executable, and uploads matching release files as an Actions artifact. It does not publish a release automatically. See [release instructions](docs/GITHUB-UPLOAD.md).
 
@@ -111,7 +111,7 @@ Drag the GPIO panel dividers to resize Pin Control/Presets and Response/Pin Info
 
 Connect the Flipper USB serial port in **CLI** mode, open **Device Dashboard**, and click **Identify / Refresh device**. This explicitly sends the read-only `device_info` command through the existing serial worker. Nothing is queried automatically on connect. Console Send pauses during the query, which has a four-second response timeout and can be cancelled by disconnecting.
 
-The adapter validates the device_info format, Flipper model, hardware target, UID structure, firmware fields, and complete response marker. This is a compatibility check of a device-reported identity, not cryptographic authentication. The only implemented device capability is `device_info`; GPIO, IR transmission, SD storage/backup, app operations and battery queries remain unavailable. Information is cleared on disconnect or transport error. Device identifiers are shown locally and appear in the explicitly requested console capture, but are excluded from diagnostics.
+The adapter validates the device_info format, Flipper model, hardware target, UID structure, firmware fields, and complete response marker. This is a compatibility check of a device-reported identity, not cryptographic authentication. The initial capability is `device_info`; SD files, IR transmission and digital GPIO require their separate explicit support checks. App operations and battery queries remain unavailable. Information is cleared on disconnect or transport error. Device identifiers are shown locally and appear in the explicitly requested console capture, but are excluded from diagnostics.
 
 This works without an SD-card query. The Wi-Fi Developer Board is not identified through this action; select the Flipper USB CLI port. If the connection is streaming output or running another CLI command, let it return to its prompt before querying.
 
@@ -144,3 +144,13 @@ For device use: **identify in CLI mode → IR Remote Studio → Check IR support
 Parsed signals validate four-byte little-endian address/command fields against documented protocol bit widths. Raw CLI transmission is limited to 10,000–1,000,000 Hz, exact one-percent duty steps, at most 512 timings, two seconds total timing duration, and a 960-character command. Valid files outside those CLI limits can still be saved/exported. File-format raw validation accepts up to 1,024 timings. Selected-signal tooltips explain unavailable transmission.
 
 The UI requires a current identified session, a successful IR probe, a warning-free file, a supported selected signal, an idle worker and confirmation. Busy-device, error and unexpected responses fail the operation; disconnect clears capability state. Command completion means the CLI returned without an error, **not that the target appliance responded**. Cancel disconnects and cannot recall IR already emitted. Physical transmission validation remains pending.
+
+## v0.8.0 — GPIO Workbench
+
+Identify the Flipper in CLI mode, open **GPIO Lab → Check GPIO support**. Only the eight regular pins PA7/2, PA6/3, PA4/4, PB3/5, PB2/6, PC3/7, PC1/15 and PC0/16 are supported. Debug/UART/internal pins and power rails are excluded. No SD card is required. Disconnect attached development boards/drivers before changing wiring; use 3.3 V compatible circuitry and common ground, and never connect competing outputs.
+
+Select **Input** before **Read**. Optional one-second polling reads only the selected input; busy serial jobs are skipped. Polling stops on pin changes, leaving GPIO Lab, manual console sends, errors, disconnects or identity refresh. The history keeps at most 500 lines and can be exported.
+
+**Output** requires confirmation and starts LOW (push-pull), as defined by firmware. After a successful response, check **Arm LOW/HIGH** to enable writes for the selected pin. Selecting another pin disarms. **Input** explicitly returns a selected output to input mode. Saved setups contain only pin selection and notes; loading never configures hardware or arms outputs.
+
+Mode/state labels show the last confirmed CLI response in the current session, not continuous hardware monitoring or measured voltage. External apps or circuits can change conditions. Disconnect/cancel does not send a reset and **physical outputs may remain active**. Tracking and arming are cleared; reconnect, identify, check support and deliberately configure pins again. This release has no analog reads, PWM, pulse sequences, power switching or automatic restore of GPIO modes. Physical GPIO validation remains pending.

@@ -93,3 +93,7 @@ The initial Windows build found 34 pixels of horizontal overflow in GPIO Lab at 
 ## v0.7.0 validation — 2026-10-16
 
 128 automated tests pass locally. New synthetic IR tests cover byte order, protocol/range checks, raw constraints, capability probing, exact transmit command count, busy/errors, cancellation before writes, library persistence/corruption/rename/removal/export, confirmation, UART/busy gates and stale-session replies. Compact IR layout was inspected at 200% scaling. No optical or appliance-response claim is made.
+
+## v0.8.0 validation — 2026-10-16
+
+143 tests pass locally. Fifteen GPIO tests cover explicit read-only probing, regular pin allowlist, exact commands, mode preconditions, strict replies, re-probe invalidation, cancellation before writes, worker state, identity refresh, CLI/busy gates, output confirmation/arming, polling exclusion/navigation, manual sends, disconnect/stale replies, errors, local-only setups and bounded history. Existing SD, backup and IR tests remain included. No physical electrical or voltage measurement claim is made.

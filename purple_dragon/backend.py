@@ -29,6 +29,7 @@ class SerialSession(QThread):
         self.outbox = queue.Queue(maxsize=32)
         self.query_lock = threading.Lock()
         self.query_pending = False
+        self.gpio_state = {}
 
     def send(self, text):
         with self.query_lock:
@@ -58,6 +59,7 @@ class SerialSession(QThread):
 
     def storage_operation(self, stream, request):
         client = StorageClient(stream, self.isInterruptionRequested, self.storage_progress.emit)
+        client.gpio_state = self.gpio_state
         result_payload = None
         try:
             result = client.execute(request['operation'], request['path'], request['local'])
@@ -86,6 +88,7 @@ class SerialSession(QThread):
                 raise ValueError('Serial input is busy. Wait for output to settle and retry.')
             if waiting:
                 self.received.emit(decoder.decode(stream.read(waiting)))
+            self.gpio_state.clear()
             stream.write(b'device_info\r')
             deadline = time.monotonic() + timeout
             while time.monotonic() < deadline and not self.isInterruptionRequested():
@@ -125,6 +128,7 @@ class SerialSession(QThread):
                         elif payload is None:
                             self.query_device_info(stream, decoder)
                         else:
+                            self.gpio_state.clear()
                             stream.write(payload)
                     except queue.Empty:
                         pass

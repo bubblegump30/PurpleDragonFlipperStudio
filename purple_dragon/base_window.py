@@ -19,6 +19,7 @@ from PySide6.QtWidgets import (
 from .backend import SerialSession, HardwareAdapter, discover_ports
 from .sd_manager import SDManagerMixin
 from .ir_workspace import IRWorkspaceMixin
+from .gpio_workbench import GPIOWorkbenchMixin
 from .matrix import MatrixRain
 from .ir_files import inspect_ir
 from .theme import THEMES, stylesheet
@@ -41,7 +42,7 @@ def label(text, role=None):
 
 
 
-class WorkspaceServices(IRWorkspaceMixin, SDManagerMixin, QMainWindow):
+class WorkspaceServices(GPIOWorkbenchMixin, IRWorkspaceMixin, SDManagerMixin, QMainWindow):
 
 
 
@@ -145,11 +146,12 @@ class WorkspaceServices(IRWorkspaceMixin, SDManagerMixin, QMainWindow):
         self.protocol_details.setAccessibleName('Queried device information')
         self.protocol_details.setPlaceholderText('Device name, firmware, hardware and protocol values appear after a successful query.')
         b.addWidget(self.protocol_details)
-        b.addWidget(label('Device information and the separate SD File Manager are implemented. Battery, GPIO, IR transmission and app operations remain unavailable.', 'muted'))
+        b.addWidget(label('Device information and the separate SD File Manager are implemented. GPIO and IR have separate explicit support checks. Battery and app operations remain unavailable.', 'muted'))
         lay.addWidget(box)
 
     def reset_device_identity(self):
         self.device_adapter.reset()
+        self.reset_gpio_session()
         self.reset_ir_session()
         self.reset_sd_manager()
         self.identify_btn.setEnabled(False)
@@ -163,6 +165,7 @@ class WorkspaceServices(IRWorkspaceMixin, SDManagerMixin, QMainWindow):
             self.identity_status.setText('Serial output is busy. Wait for queued commands to finish, then retry.')
             return
         self.sd_last_error = ''
+        self.reset_gpio_session()
         self.reset_ir_session()
         self.reset_sd_manager()
         self.device_adapter.begin()
@@ -181,10 +184,10 @@ class WorkspaceServices(IRWorkspaceMixin, SDManagerMixin, QMainWindow):
         self.identify_btn.setEnabled(self.mode.currentText() == 'CLI')
         self.send_btn.setEnabled(True)
         if self.device_adapter.state == 'identified':
-            self.connection_feedback('Device_info response checked. Other hardware capabilities remain unavailable.')
+            self.connection_feedback('Device_info response checked. Use workspace support checks for GPIO, IR and SD.')
             self.identity_status.setText('Flipper-compatible identity response checked. This is a protocol check, not cryptographic authentication.')
             self.protocol_details.setPlainText('\n'.join(k.replace('_', ' ').title() + ': ' + v for k, v in self.device_adapter.info.items()) +
-                                              '\n\nImplemented capability: device_info\nSD File Manager: probe /ext to check availability\nGPIO / IR / apps / battery: unavailable')
+                                              '\n\nImplemented capability: device_info\nSD File Manager: probe /ext to check availability\nGPIO / IR: check support in their workspaces; apps / battery: unavailable')
             self.log('Device information received; read-only device_info capability available.')
         else:
             self.identity_status.setText('Identity unverified: ' + self.device_adapter.error)
@@ -644,6 +647,7 @@ class WorkspaceServices(IRWorkspaceMixin, SDManagerMixin, QMainWindow):
             return
         ending = {'CRLF':'\r\n', 'LF':'\n', 'None':''}[self.ending.currentText()]
         if self.session.send(text + ending):
+            self.reset_gpio_session()
             self.log(f'Transmit queued: {len((text + ending).encode("utf-8"))} bytes')
             if not self.command_history or self.command_history[-1] != text:
                 self.command_history.append(text)
@@ -684,6 +688,7 @@ class WorkspaceServices(IRWorkspaceMixin, SDManagerMixin, QMainWindow):
         self.load_profile()
 
     def load_profile(self, *_):
+        if hasattr(self,'gpio_probe_btn'):self.gpio_pin_changed()
         name = self.profile.currentData()
         entry = self.profiles().get(name)
         self.profile_name.setText(name or '')
@@ -773,10 +778,6 @@ class WorkspaceServices(IRWorkspaceMixin, SDManagerMixin, QMainWindow):
         self.settings.setValue('profiles', json.dumps(data))
         self.refresh_profiles()
         self.log('Deleted local setup: ' + name)
-
-    def gpio_action(self, action):
-        # A future controller must check connection, pin mode and output arming.
-        self.notify('Backend integration', 'Wire the RC7 GPIO controller before enabling these actions.')
 
     @staticmethod
     def atomic_write_text(path, content):
@@ -1047,6 +1048,7 @@ class WorkspaceServices(IRWorkspaceMixin, SDManagerMixin, QMainWindow):
             self.rain.set_running(not self.isMinimized() and self.isVisible())
 
     def closeEvent(self, event):
+        self.reset_gpio_session()
         if self.session is not None:
             self.session.requestInterruption()
             if not self.session.wait(1600):

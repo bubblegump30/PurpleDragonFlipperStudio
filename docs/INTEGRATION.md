@@ -1,3 +1,17 @@
+# v0.8.0 digital GPIO integration
+
+`gpio_protocol.py` validates eight non-debug pin names and exact GPIO CLI acknowledgements. `gpio_workbench.py` integrates existing neon controls. `gpio_probe` sends only `gpio` usage; it requires the documented mode/set/read signatures and explicit 0=input, 1=output mapping. Only then is the connection-scoped `gpio_digital` capability enabled.
+
+The serial worker retains GPIO support and confirmed modes across jobs. Read requires a confirmed Input; set requires Output. Probe, device_info refresh and manual console writes invalidate worker tracking. UI output requires per-Output confirmation and per-selected-pin arming. Output mode firmware initializes the latch LOW before push-pull initialization. Input is an explicit command, not automatic cleanup. Each operation is bounded by the existing client deadlines and strict unprefixed prompt framing. Unexpected replies/errors close the session.
+
+No SD probing is required. Shared busy state excludes console/identity/SD/backup/IR interleaving. Polling is a user-started 1-second Qt timer for one selected input, skipping busy jobs rather than queuing a backlog. Pin changes, navigation away, manual sends, refresh and disconnect stop it. History is bounded to 500 blocks. Late results after disconnect are ignored. Saved setups remain local notes/pin selection only.
+
+The regular pins are PA7/2, PA6/3, PA4/4, PB3/5, PB2/6, PC3/7, PC1/15, PC0/16. Debug, UART, internal and power pins are excluded. No ADC/PWM/power-control integration. State is last-confirmed CLI state and may be changed by other device code; voltage is never inferred. Disconnect does not reset hardware outputs and cancellation cannot undo a command already executed. Physical validation is pending.
+
+Protocol sources inspected 2026-10-16:
+- https://github.com/flipperdevices/flipperzero-firmware/blob/dev/applications/services/cli/cli_command_gpio.c
+- https://github.com/flipperdevices/flipperzero-firmware/blob/dev/targets/f7/furi_hal/furi_hal_resources.c
+
 # v0.7.0 IR integration
 
 `ir_protocol.py` validates payloads and performs read-only capability probing or one explicit transmit command through the existing `StorageClient` framing and `SerialSession` worker. `ir_workspace.py` owns local libraries and the UI. IR requires an identified CLI session but not an SD probe. The common worker exclusion blocks console sends, identity, SD and backup operations while IR work is pending.

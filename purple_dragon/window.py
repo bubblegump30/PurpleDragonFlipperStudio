@@ -97,7 +97,7 @@ class MainWindow(base.WorkspaceServices):
             self.geometry_restored=self.restoreGeometry(geometry)
             if not any(screen.availableGeometry().intersects(self.frameGeometry()) for screen in QApplication.screens()):
                 self.move(QApplication.primaryScreen().availableGeometry().topLeft())
-        self.log('Ready • Device services await RC7 integration; serial and local tools are available.')
+        self.log('Ready • Identify in CLI mode, then check support in the GPIO, IR or SD workspace.')
 
     def build_sidebar(self,outer):
         sidebar=QFrame();sidebar.setObjectName('sidebar');sidebar.setMinimumWidth(150)
@@ -213,9 +213,10 @@ class MainWindow(base.WorkspaceServices):
         self.arm=QCheckBox('Arm LOW/HIGH after Output succeeds');self.arm.setEnabled(False)
         self.poll=QCheckBox('Read selected pin every second');self.poll.setEnabled(False)
         toggles.addWidget(self.arm);toggles.addWidget(self.poll);toggles.addStretch();p.addLayout(toggles)
-        p.addWidget(label("GPIO controls unavailable · Connect the RC7 backend to enable hardware actions.","muted"))
+        self.gpio_status=label('', 'muted');p.addWidget(self.gpio_status)
         self.arm.setToolTip("Arming is available only after the GPIO backend confirms Output mode.")
         self.poll.setToolTip("Polling requires the GPIO backend and a verified device session.")
+        self.gpio_pin_layout=p
         self.gpio_top_splitter.addWidget(pins)
         presets,p=panel();p.setSpacing(7);p.addWidget(label('⚙  Setup & Presets','sectionTitle'))
         row=QHBoxLayout();row.setSpacing(5)
@@ -248,12 +249,13 @@ class MainWindow(base.WorkspaceServices):
         r.addLayout(response_header)
         self.gpio_response=QPlainTextEdit();self.gpio_response.setObjectName('gpioResponse');self.gpio_response.setReadOnly(True)
         self.gpio_response.setMinimumHeight(97);self.gpio_response.setMaximumHeight(130)
-        self.gpio_response.setPlainText('Choose a pin and connect to view its response.\n[INFO] Use Input before Read; use Output and arm before LOW/HIGH.\n[INFO] Only connect 3.3 V compatible circuitry. Device backend required.')
+        self.gpio_response.setPlainText('Choose a pin and connect to view its response.\n[INFO] Use Input before Read; use Output and arm before LOW/HIGH.\n[INFO] Only connect 3.3 V compatible circuitry. Check GPIO support before use.')
         r.addWidget(self.gpio_response);self.gpio_info_splitter.addWidget(response)
         info,inf=panel();inf.setSpacing(4);inf.addWidget(label('ⓘ  Pin Information','sectionTitle'))
         info_body=QHBoxLayout();grid=QGridLayout();grid.setVerticalSpacing(3)
         self.pin_value=label(self.pin.currentText());self.pin_value.setObjectName('pinValue')
-        for i,(title,value) in enumerate([('Selected Pin',self.pin_value),('Mode',label('—')),('Last State',label('—')),('Voltage (3.3 V)',label('—')),('Direction',label('—'))]):
+        self.gpio_mode_value=label('Unknown');self.gpio_state_value=label('Unknown');self.gpio_direction_value=label('Unknown')
+        for i,(title,value) in enumerate([('Selected Pin',self.pin_value),('Mode',self.gpio_mode_value),('Last State',self.gpio_state_value),('Voltage',label('Not measured')),('Direction',self.gpio_direction_value)]):
             grid.addWidget(label(title,'muted'),i,0);grid.addWidget(value,i,1)
         info_body.addLayout(grid,3);chip=ChipArt(kind='blue');chip.setMinimumSize(115,100);info_body.addWidget(chip,2)
         inf.addLayout(info_body);self.gpio_info_splitter.addWidget(info);w.addLayout(middle)
@@ -269,6 +271,7 @@ class MainWindow(base.WorkspaceServices):
         self.profile.currentIndexChanged.connect(self.load_profile)
         self.pin.currentTextChanged.connect(self.pin_value.setText)
         self.refresh_profiles()
+        self.init_gpio_workbench(self.gpio_pin_layout)
 
     def build_flipper_app(self,lay):
         box,b=panel('Flipper App')
@@ -278,7 +281,7 @@ class MainWindow(base.WorkspaceServices):
         b.addWidget(label('Device app installation requires the existing RC7 app service.','muted'));lay.addWidget(box)
 
     def gpio_action(self,action):
-        self.gpio_response.appendPlainText('[INFO] '+action+' needs the connected RC7 GPIO service.')
+        super().gpio_action(action)
 
     def export_history(self):
         self.export_text(self.history.toPlainText(),'Export GPIO history','gpio-history.txt','Text files (*.txt)')
@@ -295,6 +298,7 @@ class MainWindow(base.WorkspaceServices):
 
     def navigate(self,name,record=True):
         if not hasattr(self,'pages') or name not in self.pages:return
+        if hasattr(self,'poll') and name not in ('GPIO Lab','Command Center'):self.poll.setChecked(False)
         self.stack.setCurrentIndex(self.pages[name]);actual='GPIO Lab' if name=='Command Center' else name
         self.heading.setText(actual)
         self.nav[name].setChecked(True)
@@ -337,7 +341,7 @@ class MainWindow(base.WorkspaceServices):
         self.console_search.setAccessibleName('Transcript search')
         self.command.setAccessibleName('Serial command draft')
         self.port.setAccessibleName('Serial port')
-        self.pin.setToolTip('Select a GPIO pin for local setup notes. Hardware actions require the backend.')
+        self.pin.setToolTip('Select a regular header pin. Changing pins stops polling and disarms output.')
         self.notes.setToolTip('Local setup notes. Save Setup stores the selected pin and notes.')
         self.baud.setToolTip('Serial baud rate. Saved per port; change while disconnected.')
         self.ending.setToolTip('Line ending appended only when you explicitly Send a command.')
