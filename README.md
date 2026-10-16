@@ -1,6 +1,6 @@
 # PurpleDragonFlipperStudio
 
-Neon GUI v0.8.0 · Created by KyleAustinHillier @PurpleDragonFoundationLtd
+Neon GUI v0.9.0 · Created by KyleAustinHillier @PurpleDragonFoundationLtd
 
 Rebuilt around your supplied neon-console design: the illustrated brush-style header, dragon and Flipper artwork, compact connection bar, sidebar and horizontal workspace tabs, purple outer frame, blue inner frames, multicolor illuminated GPIO buttons, and two-column GPIO layout. This is a runnable Qt desktop interface with real controls and live Matrix rain.
 
@@ -30,6 +30,7 @@ Export a settings backup before upgrading. Existing saved user settings are reus
 
 | Area | Available now |
 | --- | --- |
+| Compatibility | Current-session capability table, read-only local checks, recovery guidance and identifier-free JSON report |
 | Serial | USB serial-port discovery, open/close, bounded text receive, explicit text send with selectable line endings |
 | SD backups | Recursive /ext or selected-folder backups with manifests, checksums, restore previews and confirmed restoration to a new SD folder |
 | SD File Manager | Explicit /ext probe, folder browsing, binary upload/download with integrity checks, folder creation and confirmed non-recursive deletion |
@@ -68,7 +69,7 @@ assets/dragon.png / dragon.ico Dragon branding and Windows icon
 assets/Preview-Desktop.png     Actual app render at 1672×941
 assets/Preview-4K.png          Actual app render at 3840×2160
 PurpleDragon.spec              PyInstaller Windows build recipe
-tests/                        143 GUI, GPIO, IR, backup/restore, storage and protocol checks
+tests/                        160 GUI, compatibility, GPIO, IR, backup/restore, storage and protocol checks
 ```
 
 Run tests: `python -m unittest discover -s tests -v`.
@@ -91,7 +92,7 @@ Corrected installation guidance, updated creator credits and Help Center text, a
 
 ## Repository and release
 
-[GitHub](https://github.com/bubblegump30/PurpleDragonFlipperStudio) · [v0.8.0 release notes](docs/RELEASE-v0.8.0.md) · [MIT license](LICENSE)
+[GitHub](https://github.com/bubblegump30/PurpleDragonFlipperStudio) · [v0.9.0 release notes](docs/RELEASE-v0.9.0.md) · [MIT license](LICENSE)
 
 The Windows build workflow runs tests, builds the executable, and uploads matching release files as an Actions artifact. It does not publish a release automatically. See [release instructions](docs/GITHUB-UPLOAD.md).
 
@@ -154,3 +155,13 @@ Select **Input** before **Read**. Optional one-second polling reads only the sel
 **Output** requires confirmation and starts LOW (push-pull), as defined by firmware. After a successful response, check **Arm LOW/HIGH** to enable writes for the selected pin. Selecting another pin disarms. **Input** explicitly returns a selected output to input mode. Saved setups contain only pin selection and notes; loading never configures hardware or arms outputs.
 
 Mode/state labels show the last confirmed CLI response in the current session, not continuous hardware monitoring or measured voltage. External apps or circuits can change conditions. Disconnect/cancel does not send a reset and **physical outputs may remain active**. Tracking and arming are cleared; reconnect, identify, check support and deliberately configure pins again. This release has no analog reads, PWM, pulse sequences, power switching or automatic restore of GPIO modes. Physical GPIO validation remains pending.
+
+## v0.9.0 — Reliability & Compatibility
+
+**Device Dashboard → Reliability & Compatibility** shows identity, SD/backup, IR and digital GPIO as checked or not checked in the current connection. App/battery/ADC/PWM support is explicitly unavailable. Version numbers alone do not enable capabilities. Run local checks validates settings status, GPIO setup data and IR library data without modifying them or sending hardware commands. Export compatibility report saves runtime versions, adapter contracts, state, limits and recovery guidance; device names, hardware UIDs, USB serials, transcripts, notes and raw error text are excluded. Existing diagnostics include this snapshot.
+
+After a **manual console Send**, all identity/capability checks, restore previews, GPIO modes and arming are invalidated; saved libraries, setups and local notes remain available. Identify again and repeat the required support checks before using device workspaces. An identity timeout, malformed response or transport error now closes the session instead of allowing a retry into late response bytes. Reconnect explicitly; no command replay or automatic reconnection is added.
+
+Transport callbacks are tied to their originating session. Late open/data/fault/finished signals cannot change a replacement connection. Cancellation remains latched even before the thread starts, interrupted workers reject new work, queued request data is copied, and operation errors preserve the underlying reason through shutdown. SD, IR and GPIO share strict command-echo and unprefixed prompt framing; customized/named prompts are unsupported and fail closed.
+
+The contracts remain device_info major 2 / Flipper Zero target 7 plus the separately checked workspace CLI formats. This release does not claim universal firmware compatibility or physical hardware validation. Disconnect/cancel cannot undo GPIO writes, IR emission or SD changes already performed.

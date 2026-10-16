@@ -1,9 +1,8 @@
 """Conservative digital GPIO CLI adapter; no debug, power, ADC or PWM pins."""
 import re
-from .sd_protocol import StorageError
+from .sd_protocol import StorageError, PROMPT
 
 PINS={'PA7':2,'PA6':3,'PA4':4,'PB3':5,'PB2':6,'PC3':7,'PC1':15,'PC0':16}
-PROMPT=re.compile(rb'(?:^|\r\n)>: $')
 
 
 def execute_gpio(client, operation, request):

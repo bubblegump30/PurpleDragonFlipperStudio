@@ -1,7 +1,7 @@
 """Validated single-command IR transmission; completion is not target acknowledgement."""
 from decimal import Decimal, InvalidOperation
 import re
-from .sd_protocol import StorageClient, StorageError
+from .sd_protocol import StorageError, PROMPT
 
 PROTOCOL_BITS = {'NEC':(8,8),'NECext':(16,16),'NEC42':(13,8),'NEC42ext':(26,16),
                  'Samsung32':(8,8),'RC6':(8,8),'RC5':(5,6),'RC5X':(5,7),
@@ -69,7 +69,7 @@ def parse_ir_capabilities(body):
 def execute_ir(client, operation, request):
     if operation=='ir_probe':
         client.header('ir')
-        return parse_ir_capabilities(client.finish(prompt=re.compile(rb'(?:^|\r\n)>: $')))
+        return parse_ir_capabilities(client.finish(prompt=PROMPT))
     if operation!='ir_transmit': raise StorageError('Unsupported IR operation.')
     entry=request['entry']; capabilities=request['capabilities']
     command=signal_command(entry)
@@ -77,7 +77,7 @@ def execute_ir(client, operation, request):
     if (kind=='raw' and capabilities.get('raw') is not True) or (kind=='parsed' and entry['fields']['protocol'] not in capabilities.get('protocols',[])):
         raise StorageError('This signal format was not advertised by the current device.')
     client.header(command)
-    body=client.finish(prompt=re.compile(rb'(?:^|\r\n)>: $'))
+    body=client.finish(prompt=PROMPT)
     if body.strip():
         raise StorageError('IR command returned an error or unrecognized response: ' + body.decode('utf-8',errors='replace')[:300])
     return {'completed':True}

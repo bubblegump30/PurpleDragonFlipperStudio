@@ -14,12 +14,13 @@ from PySide6.QtWidgets import (
     QMainWindow, QWidget, QFrame, QLabel, QPushButton, QVBoxLayout, QHBoxLayout,
     QGridLayout, QStackedWidget, QScrollArea, QComboBox, QLineEdit,
     QPlainTextEdit, QCheckBox, QSlider, QFileDialog, QMessageBox,
-    QGraphicsDropShadowEffect, QButtonGroup, QApplication,
+    QGraphicsDropShadowEffect, QButtonGroup, QApplication, QTreeWidget, QTreeWidgetItem, QHeaderView,
 )
 from .backend import SerialSession, HardwareAdapter, discover_ports
 from .sd_manager import SDManagerMixin
 from .ir_workspace import IRWorkspaceMixin
 from .gpio_workbench import GPIOWorkbenchMixin
+from .compatibility import compatibility_snapshot
 from .matrix import MatrixRain
 from .ir_files import inspect_ir
 from .theme import THEMES, stylesheet
@@ -148,6 +149,37 @@ class WorkspaceServices(GPIOWorkbenchMixin, IRWorkspaceMixin, SDManagerMixin, QM
         b.addWidget(self.protocol_details)
         b.addWidget(label('Device information and the separate SD File Manager are implemented. GPIO and IR have separate explicit support checks. Battery and app operations remain unavailable.', 'muted'))
         lay.addWidget(box)
+        self.build_compatibility(lay)
+
+    def build_compatibility(self, lay):
+        box, layout=panel('Reliability & Compatibility')
+        self.compatibility_table=QTreeWidget();self.compatibility_table.setHeaderLabels(['Area','Status','Next step'])
+        self.compatibility_table.setRootIsDecorated(False);self.compatibility_table.setMinimumHeight(190)
+        self.compatibility_table.setAccessibleName('Current session compatibility')
+        self.compatibility_table.header().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
+        self.compatibility_table.header().setSectionResizeMode(2,QHeaderView.ResizeMode.Stretch)
+        layout.addWidget(self.compatibility_table)
+        self.compatibility_recovery=label('', 'muted');layout.addWidget(self.compatibility_recovery)
+        row=QHBoxLayout();row.addWidget(button('Run local checks',self.run_local_checks));row.addWidget(button('Export compatibility report',self.export_compatibility));layout.addLayout(row)
+        layout.addWidget(label('Checks read local state only and send no device commands. Capability checks apply to this connection; physical behavior remains unverified.', 'muted'))
+        lay.addWidget(box)
+
+    def update_compatibility(self):
+        if not hasattr(self,'compatibility_table') or not hasattr(self,'sd_tree'):return
+        report=compatibility_snapshot(self);self.compatibility_table.clear()
+        for entry in report['capabilities']:
+            item=QTreeWidgetItem([entry['area'],entry['status'],entry['next_step']])
+            for column in range(3):item.setToolTip(column,item.text(column))
+            self.compatibility_table.addTopLevelItem(item)
+        self.compatibility_recovery.setText(report['recovery'])
+
+    def run_local_checks(self):
+        self.update_compatibility()
+        report=compatibility_snapshot(self)
+        self.compatibility_recovery.setText('Local checks: '+ ' · '.join(x['area']+(': OK' if x['ok'] else ': needs attention') for x in report['local_checks'])+'. '+report['recovery'])
+
+    def export_compatibility(self):
+        self.export_text(json.dumps(compatibility_snapshot(self),indent=2),'Export compatibility report','purple-dragon-compatibility.json','JSON (*.json)')
 
     def reset_device_identity(self):
         self.device_adapter.reset()
@@ -181,8 +213,8 @@ class WorkspaceServices(GPIOWorkbenchMixin, IRWorkspaceMixin, SDManagerMixin, QM
         if session is not self.session or not self.connected or self.connection_cancelled or self.connection_lost or self.last_connection_error or self.device_adapter.state != 'querying':
             return
         self.device_adapter.complete(result)
-        self.identify_btn.setEnabled(self.mode.currentText() == 'CLI')
-        self.send_btn.setEnabled(True)
+        self.identify_btn.setEnabled(bool(result.get('ok') and self.device_adapter.state=='identified' and self.mode.currentText()=='CLI'))
+        self.send_btn.setEnabled(bool(result.get('ok') and self.device_adapter.state=='identified'))
         if self.device_adapter.state == 'identified':
             self.connection_feedback('Device_info response checked. Use workspace support checks for GPIO, IR and SD.')
             self.identity_status.setText('Flipper-compatible identity response checked. This is a protocol check, not cryptographic authentication.')
@@ -192,7 +224,8 @@ class WorkspaceServices(GPIOWorkbenchMixin, IRWorkspaceMixin, SDManagerMixin, QM
         else:
             self.identity_status.setText('Identity unverified: ' + self.device_adapter.error)
             self.connection_feedback('Serial open; identity unverified. ' + self.device_adapter.error)
-            self.log('Device information query failed; capabilities remain unavailable.', 'Warning')
+            self.log('Device information query failed; reconnect required.', 'Warning')
+            self.serial_fault('Identity query failed: '+self.device_adapter.error)
         self.update_sd_controls()
 
     def build_ir(self, lay):
@@ -392,12 +425,14 @@ class WorkspaceServices(GPIOWorkbenchMixin, IRWorkspaceMixin, SDManagerMixin, QM
             self.connection_feedback('Select a port and connect.' if ports else 'Connect your device by USB, close other serial tools, then refresh.')
 
     def serial_fault(self, message):
+        if self.session is not None:self.session.requestInterruption()
         self.reset_device_identity()
         self.last_connection_error = message
         self.connection_state = 'lost' if self.connection_lost else 'error'
         self.send_btn.setEnabled(False)
         self.log('Serial error: ' + message, 'Error')
         self.connection_feedback('Serial error: ' + message + '. ' + self.error_guidance(message))
+        self.update_compatibility()
 
     def toggle_connection(self):
         if self.session is not None:
@@ -434,13 +469,13 @@ class WorkspaceServices(GPIOWorkbenchMixin, IRWorkspaceMixin, SDManagerMixin, QM
         self.settings.setValue('mode', self.mode.currentText())
         self.settings.setValue('baud', self.baud.currentText())
         self.session = SerialSession(port, int(self.baud.currentText()), self)
-        self.session.opened.connect(self.serial_opened)
-        self.session.received.connect(self.receive)
-        self.session.fault.connect(self.serial_fault)
-        self.session.finished.connect(self.serial_finished)
         current_session = self.session
+        self.session.opened.connect(lambda session=current_session: self.deliver_transport(session,self.serial_opened))
+        self.session.received.connect(lambda text,session=current_session: self.deliver_transport(session,self.receive,text))
+        self.session.fault.connect(lambda error,session=current_session: self.deliver_transport(session,self.serial_fault,error))
+        self.session.finished.connect(lambda session=current_session: self.deliver_transport(session,self.serial_finished))
         self.session.device_info_result.connect(lambda result, session=current_session: self.device_info_finished(session, result))
-        self.session.storage_result.connect(lambda result, session=current_session: self.sd_operation_finished(session, result))
+        self.session.storage_result.connect(lambda result, session=current_session: self.deliver_operation_result(session, result))
         self.session.storage_progress.connect(lambda done, total, session=current_session: self.sd_progress_update(session, done, total))
         self.connect_btn.setText('Cancel connection')
         for control in [self.port, self.mode, self.baud, self.refresh_btn]:
@@ -448,6 +483,16 @@ class WorkspaceServices(GPIOWorkbenchMixin, IRWorkspaceMixin, SDManagerMixin, QM
         self.badge.setText('○  CONNECTING')
         self.connection_feedback('Opening ' + port + '…')
         self.session.start()
+
+    def deliver_operation_result(self, session, result):
+        if session is not self.session:return
+        self.sd_operation_finished(session,result)
+        if not result.get('ok') and not self.connection_cancelled:
+            self.serial_fault('Device operation failed: '+result.get('error','Unknown response.'))
+
+    def deliver_transport(self, session, handler, *args):
+        if session is self.session:
+            handler(*args)
 
     def serial_opened(self):
         if self.connection_cancelled or self.connection_lost or self.last_connection_error:
@@ -493,6 +538,7 @@ class WorkspaceServices(GPIOWorkbenchMixin, IRWorkspaceMixin, SDManagerMixin, QM
         else:
             self.connection_feedback('Disconnected. Select a port to reconnect.')
         self.log('Serial transport closed.')
+        self.update_compatibility()
 
     def eventFilter(self, watched, event):
         if watched is getattr(self, 'command', None) and event.type() == QEvent.Type.KeyPress:
@@ -647,7 +693,9 @@ class WorkspaceServices(GPIOWorkbenchMixin, IRWorkspaceMixin, SDManagerMixin, QM
             return
         ending = {'CRLF':'\r\n', 'LF':'\n', 'None':''}[self.ending.currentText()]
         if self.session.send(text + ending):
-            self.reset_gpio_session()
+            self.reset_device_identity()
+            self.identify_btn.setEnabled(self.mode.currentText()=='CLI')
+            self.update_sd_controls()
             self.log(f'Transmit queued: {len((text + ending).encode("utf-8"))} bytes')
             if not self.command_history or self.command_history[-1] != text:
                 self.command_history.append(text)
@@ -816,6 +864,7 @@ class WorkspaceServices(GPIOWorkbenchMixin, IRWorkspaceMixin, SDManagerMixin, QM
             'settings': {'status': self.settings.status().name, 'preset_store_valid': error is None,
                          'preset_count': len(self.profiles()) if error is None else None},
             'buffers': {'retained_log_entries': len(self.log_entries), 'command_history_entries': len(self.command_history)},
+            'compatibility': compatibility_snapshot(self),
             'device_backend': {'capabilities': sorted(self.adapter.capabilities)},
             'verification': 'Windows packaging and physical hardware checks require local verification.'}
 

@@ -71,9 +71,11 @@ class SDManagerMixin(BackupCenterMixin):
         self.update_backup_controls()
         self.update_ir_controls()
         self.update_gpio_controls()
+        self.update_compatibility()
 
     def reset_sd_manager(self):
         if not hasattr(self, 'sd_tree'): return
+        self.device_adapter.capabilities-={'sd_files'}
         self.sd_busy = self.sd_available = False
         self.sd_tree.clear(); self.sd_directory = '/ext'; self.sd_path_field.setText('/ext')
         self.sd_progress.setValue(0)

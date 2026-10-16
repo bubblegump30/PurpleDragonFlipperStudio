@@ -10,6 +10,8 @@ FIELDS = ('hardware_model', 'hardware_name', 'hardware_uid', 'hardware_target',
 
 
 def parse_device_info(text):
+    if not isinstance(text,str):
+        raise ValueError('Device information must be text.')
     if len(text) > MAX_RESPONSE:
         raise ValueError('Device information exceeded the response limit.')
     values = {}
@@ -56,6 +58,8 @@ class DeviceInfoAdapter:
 
     def complete(self, result):
         self.reset()
+        if not isinstance(result,dict):
+            self.state='unsupported';self.error='Invalid device query result.';return
         if result.get('ok'):
             # Validate again at the adapter boundary rather than trust arbitrary signal data.
             try:

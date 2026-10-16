@@ -9,7 +9,7 @@ import uuid
 
 LIMIT = 4 * 1024 * 1024
 ANSI = re.compile(rb'\x1b\[[0-?]*[ -/]*[@-~]')
-PROMPT = re.compile(rb'(?:^|\r\n)[^\r\n]{0,128}>: $')
+PROMPT = re.compile(rb'(?:^|\r\n)>: $')
 
 
 class StorageError(ValueError):
@@ -94,7 +94,7 @@ class StorageClient:
             while b'\r\n' in self.buffer:
                 line, self.buffer = self.buffer.split(b'\r\n', 1)
                 clean = ANSI.sub(b'', line)
-                if clean.endswith(command.encode('utf-8')):
+                if clean in (command.encode('utf-8'), b'>: '+command.encode('utf-8')):
                     return
             if len(self.buffer) > 65536:
                 raise StorageError('Missing CLI command echo.')

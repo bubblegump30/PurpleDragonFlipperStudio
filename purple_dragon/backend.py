@@ -1,4 +1,5 @@
 """Serial transport and extension boundary; no automatic hardware commands."""
+import copy
 import queue
 import codecs
 import time
@@ -25,15 +26,23 @@ class SerialSession(QThread):
 
     def __init__(self, port, baud, parent=None):
         super().__init__(parent)
+        self.stop_requested = threading.Event()
         self.port, self.baud = port, baud
         self.outbox = queue.Queue(maxsize=32)
         self.query_lock = threading.Lock()
         self.query_pending = False
         self.gpio_state = {}
 
+    def requestInterruption(self):
+        self.stop_requested.set()
+        super().requestInterruption()
+
+    def isInterruptionRequested(self):
+        return self.stop_requested.is_set() or super().isInterruptionRequested()
+
     def send(self, text):
         with self.query_lock:
-            if self.query_pending:
+            if self.query_pending or self.isInterruptionRequested():
                 return False
             try:
                 self.outbox.put_nowait(text.encode('utf-8'))
@@ -53,8 +62,9 @@ class SerialSession(QThread):
         with self.query_lock:
             if self.query_pending or not self.outbox.empty() or self.isInterruptionRequested():
                 return False
+            request={'operation': operation, 'path': path, 'local': copy.deepcopy(local)}
+            self.outbox.put_nowait(request)
             self.query_pending = True
-            self.outbox.put_nowait({'operation': operation, 'path': path, 'local': local})
             return True
 
     def storage_operation(self, stream, request):
@@ -64,7 +74,7 @@ class SerialSession(QThread):
         try:
             result = client.execute(request['operation'], request['path'], request['local'])
             result_payload = {'ok': True, **request, **result}
-        except (ValueError, OSError, UnicodeError) as exc:
+        except (ValueError, OSError, UnicodeError, KeyError, TypeError) as exc:
             message = str(exc)
             if client.staged:
                 message += ' Staged upload may remain at ' + client.staged + '.'
@@ -106,8 +116,9 @@ class SerialSession(QThread):
                     return
             raise ValueError('Device query cancelled.' if self.isInterruptionRequested() else
                              'Device query timed out. Check CLI mode and firmware compatibility, then retry.')
-        except ValueError as exc:
-            result_payload = {'ok': False, 'error': str(exc)}
+        except (ValueError, OSError) as exc:
+            self.requestInterruption()
+            result_payload = {'ok': False, 'error': str(exc) + ' Reconnect before querying again.'}
         finally:
             with self.query_lock:
                 self.query_pending = False
@@ -115,6 +126,9 @@ class SerialSession(QThread):
                 self.device_info_result.emit(result_payload)
 
     def run(self):
+        if self.isInterruptionRequested():
+            self.closed.emit()
+            return
         decoder = codecs.getincrementaldecoder('utf-8')(errors='replace')
         try:
             with serial.Serial(self.port, self.baud, timeout=.1, write_timeout=.5) as stream:
@@ -132,6 +146,8 @@ class SerialSession(QThread):
                             stream.write(payload)
                     except queue.Empty:
                         pass
+                    if self.isInterruptionRequested():
+                        break
                     data = stream.read(min(max(stream.in_waiting, 1), 4096))
                     if data:
                         self.received.emit(decoder.decode(data))

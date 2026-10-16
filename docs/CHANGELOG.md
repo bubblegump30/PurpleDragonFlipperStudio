@@ -101,3 +101,7 @@ Added named local libraries, stronger IR validation, selected-signal export, exp
 ## v0.8.0 — GPIO Workbench
 
 Added a digital GPIO CLI adapter for eight regular header pins, explicit support checking, input/read, confirmed Output starting LOW, armed writes, optional one-second input polling, confirmed-response labels and bounded history. Preserved the neon controls and local setups. Commands share serial exclusion; mode tracking is connection-scoped and invalidated by manual sends, refresh and disconnect. No physical reset is claimed on disconnect.
+
+## v0.9.0 — Reliability & Compatibility
+
+Added current-session compatibility status, local data checks and identifier-free report export. Bound transport callbacks to their originating session, latched cancellation before thread startup, closed failed identity queries, preserved operation error causes, copied queued payloads and unified strict echo/prompt framing. Manual console sends now invalidate all device checks and restore previews.

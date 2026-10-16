@@ -97,3 +97,7 @@ The initial Windows build found 34 pixels of horizontal overflow in GPIO Lab at 
 ## v0.8.0 validation — 2026-10-16
 
 143 tests pass locally. Fifteen GPIO tests cover explicit read-only probing, regular pin allowlist, exact commands, mode preconditions, strict replies, re-probe invalidation, cancellation before writes, worker state, identity refresh, CLI/busy gates, output confirmation/arming, polling exclusion/navigation, manual sends, disconnect/stale replies, errors, local-only setups and bounded history. Existing SD, backup and IR tests remain included. No physical electrical or voltage measurement claim is made.
+
+## v0.9.0 validation — 2026-10-16
+
+160 tests pass locally. Seventeen new checks cover stop-before-start/no port access, rejection after interruption, queue payload snapshots/copy failure, identity timeout/OSError shutdown, no post-failure reads, malformed identity types, exact echo and prompt/error boundaries, actual Qt transport signal bindings across replacement sessions, compatibility privacy and export, observed capability status, manual-send invalidation, error persistence, stale failure rejection, corrupt local stores and failed-query UI gates. Existing protocol, UI, SD, backup, IR and GPIO tests remain included. Dashboard layouts were inspected at compact/desktop sizes with 200% scaling and no horizontal page overflow. Physical hardware behavior is unverified.
