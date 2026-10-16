@@ -89,3 +89,7 @@ The initial Windows build found 34 pixels of horizontal overflow in GPIO Lab at 
 ## v0.6.0 validation — 2026-10-16
 
 114 automated tests pass locally. New tests use the synthetic storage CLI to exercise backup/restore round trips, empty folders, payload hashes, corruption and traversal, changed manifests, existing targets, preflight limits, cancellation, incomplete backup rejection, partial restore reporting, confirmation and stale-preview invalidation. Compact UI was inspected. No physical-card recovery claim is made.
+
+## v0.7.0 validation — 2026-10-16
+
+128 automated tests pass locally. New synthetic IR tests cover byte order, protocol/range checks, raw constraints, capability probing, exact transmit command count, busy/errors, cancellation before writes, library persistence/corruption/rename/removal/export, confirmation, UART/busy gates and stale-session replies. Compact IR layout was inspected at 200% scaling. No optical or appliance-response claim is made.

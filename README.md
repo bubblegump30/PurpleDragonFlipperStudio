@@ -1,6 +1,6 @@
 # PurpleDragonFlipperStudio
 
-Neon GUI v0.6.0 · Created by KyleAustinHillier @PurpleDragonFoundationLtd
+Neon GUI v0.7.0 · Created by KyleAustinHillier @PurpleDragonFoundationLtd
 
 Rebuilt around your supplied neon-console design: the illustrated brush-style header, dragon and Flipper artwork, compact connection bar, sidebar and horizontal workspace tabs, purple outer frame, blue inner frames, multicolor illuminated GPIO buttons, and two-column GPIO layout. This is a runnable Qt desktop interface with real controls and live Matrix rain.
 
@@ -37,7 +37,7 @@ Export a settings backup before upgrading. Existing saved user settings are reus
 | GPIO setups | Named local experiments, pin choice, notes, save/delete, JSON import/export |
 | GPIO workspace | Reference-based controls, pin information, response area and exportable history pane |
 | Appearance | Eight themes, inline theme switching, glow, Matrix controls, persistent settings |
-| Local IR | Open and preview `.ir` files |
+| IR Workspace | Validated .ir files, named local libraries, whole-file/selected-signal export, explicit capability check and confirmed single-command transmission |
 | Local tools | Console, setup and session-log exports |
 | Navigation | Last-workspace restore, synchronized selectors, keyboard shortcuts, session Back/Forward history |
 | Apps | Official catalog, NFC category, community directory and Foundation website |
@@ -68,7 +68,7 @@ assets/dragon.png / dragon.ico Dragon branding and Windows icon
 assets/Preview-Desktop.png     Actual app render at 1672×941
 assets/Preview-4K.png          Actual app render at 3840×2160
 PurpleDragon.spec              PyInstaller Windows build recipe
-tests/                        114 GUI, backup/restore, storage, protocol and packaging checks
+tests/                        128 GUI, IR, backup/restore, storage and protocol checks
 ```
 
 Run tests: `python -m unittest discover -s tests -v`.
@@ -91,7 +91,7 @@ Corrected installation guidance, updated creator credits and Help Center text, a
 
 ## Repository and release
 
-[GitHub](https://github.com/bubblegump30/PurpleDragonFlipperStudio) · [v0.6.0 release notes](docs/RELEASE-v0.6.0.md) · [MIT license](LICENSE)
+[GitHub](https://github.com/bubblegump30/PurpleDragonFlipperStudio) · [v0.7.0 release notes](docs/RELEASE-v0.7.0.md) · [MIT license](LICENSE)
 
 The Windows build workflow runs tests, builds the executable, and uploads matching release files as an Actions artifact. It does not publish a release automatically. See [release instructions](docs/GITHUB-UPLOAD.md).
 
@@ -134,3 +134,13 @@ Limits are **4 MiB per file, 256 MiB total, and 2,000 file/folder entries**. Ove
 To restore, choose a completed backup folder and a **new folder name under `/ext`**, then **Verify & preview**. All payload checksums and paths are validated before the preview lists the destination and files. Confirming restore revalidates the backup and checks that the destination still does not exist. It creates that new folder and uploads verified payload snapshots. It never merges into existing folders, overwrites existing files, or formats the card. Files restored into the new folder do not automatically replace active app data elsewhere on the SD card.
 
 Progress and Cancel & disconnect are available. Backup/restore operations have a 30-minute overall deadline while individual serial command deadlines remain bounded. Cancellation/failure closes the serial session; a partial restore may remain in the new destination. Reconnect, identify and probe before retrying. Physical SD-card validation remains pending.
+
+## v0.7.0 — IR Workspace
+
+Open **IR Remote Studio** to load `.ir` files, filter/select signals, and save named local libraries. Libraries can be loaded, renamed, removed after confirmation, and exported as standard `.ir` files. Whole-file and selected-signal export never transmit. The store is limited to ten libraries and 2 MB total IR text; individual files are limited to 1 MB and 512 named signals. Corrupt saved stores are preserved rather than overwritten. IR libraries are saved locally and are **not included in the existing settings-backup format**; export `.ir` files to back them up.
+
+For device use: **identify in CLI mode → IR Remote Studio → Check IR support → select a valid signal → Transmit selected signal → confirm**. The explicit read-only `ir` usage query discovers supported formats. No SD card is required. One `ir tx` command is sent through the existing worker; firmware may emit protocol-defined repeat frames. No automatic playback, bulk transmission, or universal brute-force action is provided.
+
+Parsed signals validate four-byte little-endian address/command fields against documented protocol bit widths. Raw CLI transmission is limited to 10,000–1,000,000 Hz, exact one-percent duty steps, at most 512 timings, two seconds total timing duration, and a 960-character command. Valid files outside those CLI limits can still be saved/exported. File-format raw validation accepts up to 1,024 timings. Selected-signal tooltips explain unavailable transmission.
+
+The UI requires a current identified session, a successful IR probe, a warning-free file, a supported selected signal, an idle worker and confirmation. Busy-device, error and unexpected responses fail the operation; disconnect clears capability state. Command completion means the CLI returned without an error, **not that the target appliance responded**. Cancel disconnects and cannot recall IR already emitted. Physical transmission validation remains pending.

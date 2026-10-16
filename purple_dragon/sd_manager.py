@@ -69,6 +69,7 @@ class SDManagerMixin(BackupCenterMixin):
         self.sd_download_btn.setEnabled(bool(ready and self.sd_available and entry and not entry['directory']))
         self.sd_cancel_btn.setEnabled(bool(self.sd_busy))
         self.update_backup_controls()
+        self.update_ir_controls()
 
     def reset_sd_manager(self):
         if not hasattr(self, 'sd_tree'): return
@@ -96,6 +97,9 @@ class SDManagerMixin(BackupCenterMixin):
         self.update_sd_controls()
 
     def sd_operation_finished(self, session, result):
+        if result.get('operation') in ('ir_probe','ir_transmit'):
+            self.ir_operation_finished(session,result)
+            return
         if result.get('operation') in ('backup','restore_preview','restore'):
             self.backup_operation_finished(session, result)
             return

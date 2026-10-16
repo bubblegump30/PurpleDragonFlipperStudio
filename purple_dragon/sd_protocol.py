@@ -99,11 +99,11 @@ class StorageClient:
                 raise StorageError('Missing CLI command echo.')
             self.fill(deadline)
 
-    def finish(self):
+    def finish(self, prompt=PROMPT):
         deadline = time.monotonic() + 30
         while True:
             clean = ANSI.sub(b'', self.buffer)
-            match = PROMPT.search(clean)
+            match = prompt.search(clean)
             if match:
                 self.buffer = b''
                 return clean[:match.start()]
@@ -206,6 +206,9 @@ class StorageClient:
         return {'bytes': len(data), 'sha256': hashlib.sha256(data).hexdigest()}
 
     def execute(self, operation, path, local=None):
+        if operation in ('ir_probe','ir_transmit'):
+            from .ir_protocol import execute_ir
+            return execute_ir(self, operation, local)
         if operation in ('backup', 'restore_preview', 'restore'):
             from .backup_service import BackupService
             service = BackupService(self)

@@ -18,6 +18,7 @@ from PySide6.QtWidgets import (
 )
 from .backend import SerialSession, HardwareAdapter, discover_ports
 from .sd_manager import SDManagerMixin
+from .ir_workspace import IRWorkspaceMixin
 from .matrix import MatrixRain
 from .ir_files import inspect_ir
 from .theme import THEMES, stylesheet
@@ -40,7 +41,7 @@ def label(text, role=None):
 
 
 
-class WorkspaceServices(SDManagerMixin, QMainWindow):
+class WorkspaceServices(IRWorkspaceMixin, SDManagerMixin, QMainWindow):
 
 
 
@@ -149,6 +150,7 @@ class WorkspaceServices(SDManagerMixin, QMainWindow):
 
     def reset_device_identity(self):
         self.device_adapter.reset()
+        self.reset_ir_session()
         self.reset_sd_manager()
         self.identify_btn.setEnabled(False)
         self.protocol_details.clear()
@@ -161,6 +163,7 @@ class WorkspaceServices(SDManagerMixin, QMainWindow):
             self.identity_status.setText('Serial output is busy. Wait for queued commands to finish, then retry.')
             return
         self.sd_last_error = ''
+        self.reset_ir_session()
         self.reset_sd_manager()
         self.device_adapter.begin()
         self.protocol_details.clear()
@@ -190,27 +193,7 @@ class WorkspaceServices(SDManagerMixin, QMainWindow):
         self.update_sd_controls()
 
     def build_ir(self, lay):
-        box, b = panel('IR Remote Studio  /  Local file preview')
-        b.addWidget(label('Open a local Flipper .ir file to inspect it. Transmission requires integration with your existing IR backend.', 'muted'))
-        b.addWidget(button('Open .ir file', self.open_ir, True))
-        self.ir_entries=[]
-        self.ir_filter=QLineEdit();self.ir_filter.setPlaceholderText('Filter signal names…');self.ir_filter.setMaxLength(256)
-        self.ir_signals=QComboBox();self.ir_signals.setMinimumWidth(150)
-        row=QHBoxLayout();row.addWidget(self.ir_filter,1);row.addWidget(self.ir_signals,1);b.addLayout(row)
-        self.ir_summary=label('No file loaded.','muted');self.ir_summary.setTextFormat(Qt.TextFormat.PlainText);b.addWidget(self.ir_summary)
-        self.ir_filter.textChanged.connect(self.filter_ir_signals)
-        self.ir_signals.currentIndexChanged.connect(self.select_ir_signal)
-        self.ir_preview = QPlainTextEdit()
-        self.ir_preview.setReadOnly(True)
-        self.ir_preview.setMinimumHeight(300)
-        self.ir_preview.setPlaceholderText('No infrared file selected.')
-        b.addWidget(self.ir_preview)
-        b.addWidget(button('Copy file text', lambda: QApplication.clipboard().setText(self.ir_preview.toPlainText())))
-        transmit = button('Transmit signal', lambda: None)
-        transmit.setToolTip('Requires the RC7 IR transmission backend.')
-        transmit.setEnabled(False)
-        b.addWidget(transmit)
-        lay.addWidget(box)
+        self.build_ir_workspace(lay)
 
     def build_tools(self, lay):
         self.build_backup_center(lay)
@@ -975,12 +958,7 @@ class WorkspaceServices(SDManagerMixin, QMainWindow):
             if Path(path).stat().st_size > 1_000_000:
                 raise ValueError('Preview files must be smaller than 1 MB.')
             text=Path(path).read_text(encoding='utf-8-sig')
-            entries,warnings=inspect_ir(text)
-            self.ir_preview.setPlainText(text)
-            self.ir_entries=entries
-            self.filter_ir_signals()
-            self.ir_summary.setText(f'{Path(path).name} · {len(entries)} signals · {len(warnings)} structure warnings. These checks do not verify device compatibility.')
-            self.ir_summary.setToolTip('\n'.join(warnings[:50]) if warnings else 'Basic structure checks passed; payload values are not validated.')
+            self.load_ir_text(text,Path(path).name)
             self.log('Previewing infrared file: ' + Path(path).name)
         except (ValueError, OSError, UnicodeError) as exc:
             self.notify('Preview failed', str(exc))
@@ -996,6 +974,7 @@ class WorkspaceServices(SDManagerMixin, QMainWindow):
         self.select_ir_signal()
 
     def select_ir_signal(self, *_):
+        self.update_ir_controls()
         line=self.ir_signals.currentData()
         if line is None: return
         cursor=QTextCursor(self.ir_preview.document().findBlockByNumber(line))

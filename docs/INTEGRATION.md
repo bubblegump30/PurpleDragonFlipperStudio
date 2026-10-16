@@ -1,3 +1,32 @@
+# v0.7.0 IR integration
+
+`ir_protocol.py` validates payloads and performs read-only capability probing or one explicit transmit command through the existing `StorageClient` framing and `SerialSession` worker. `ir_workspace.py` owns local libraries and the UI. IR requires an identified CLI session but not an SD probe. The common worker exclusion blocks console sends, identity, SD and backup operations while IR work is pending.
+
+## Protocol contract
+
+`ir` prints usage and Available protocols without transmitting. The adapter intersects advertised protocols with the known protocol bit-width table and checks whether RAW syntax is advertised. The UI keeps this support state per connection; reconnect/re-identification clears it.
+
+Parsed .ir addresses and commands are four hexadecimal bytes interpreted little-endian, as in the official signal file implementation. Supported names and widths are NEC, NECext, NEC42, NEC42ext, Samsung32, RC5, RC5X, RC6, SIRC, SIRC15, SIRC20, Kaseikyo, RCA and Pioneer. Out-of-range fields and extra/duplicate fields are refused.
+
+Raw CLI commands require frequency 10,000–1,000,000 Hz, exact integer percent duty (converted from file fraction), 1–512 positive timings no larger than one second each, at most two seconds in total, and at most 960 command characters. These are bounded adapter limits, not a claim to support every valid raw file. Local raw validation supports up to 1,024 uint32 timings and fractional duty; export preserves those fields without converting them to CLI data.
+
+Transmission is one explicitly confirmed `ir tx` command using a snapshot of the selected validated signal. Firmware controls its normal minimum repeat frames. No universal/brute-force or continuous replay commands are generated. The adapter requires the standard unprefixed CLI prompt and an empty response body on completion. Busy, argument errors, unexpected output, unsupported prompts and timeouts fail/close the session rather than claiming success. Completion does not verify optical output or appliance action. Cancellation disconnects; already emitted IR cannot be recalled.
+
+## Libraries and validation
+
+Files are bounded to 1 MB and 512 signals. Duplicate names/fields, header problems and malformed payloads generate warnings; a warning-free file is required for transmission or saving a library. Valid signals that are incompatible with CLI conversion remain saveable/exportable. The QSettings library store holds at most ten named libraries and 2 MB of file text, with a 2.1 MB encoded JSON limit. Full-store validation occurs before writes; malformed existing data is preserved. Loading, renaming, export and clipboard actions never transmit. Libraries are excluded from the older settings-backup schema and can be exported independently as .ir files.
+
+## Primary sources and remaining validation
+
+- [Official IR CLI arguments, errors and transmit behavior](https://github.com/flipperdevices/flipperzero-firmware/blob/dev/applications/main/infrared/infrared_cli.c)
+- [File byte order and payload validation](https://github.com/flipperdevices/flipperzero-firmware/blob/dev/lib/infrared/signal/infrared_signal.c)
+- [Protocol implementations and bit-width tables](https://github.com/flipperdevices/flipperzero-firmware/tree/dev/lib/infrared/encoder_decoder)
+- [Hardware carrier range](https://github.com/flipperdevices/flipperzero-firmware/blob/dev/targets/furi_hal_include/furi_hal_infrared.h)
+
+Synthetic CLI fixtures cover parsing/framing/error handling. Actual Flipper IR output, target behavior, firmware compatibility and cancellation need hardware validation.
+
+---
+
 # v0.6.0 backup and restore integration
 
 `backup_service.py` implements verified folder backups and previewed restoration through the same `StorageClient` and serial worker. `backup_center.py` adds the UI in Backup & Tools. Backup, restore_preview, and restore use the existing operation exclusion, cancellation, stale-session checks and progress signals.

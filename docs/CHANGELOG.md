@@ -93,3 +93,7 @@ Added explicit SD probing, /ext directory navigation, verified binary transfers 
 ## v0.6.0 — Backup & Restore Center
 
 Added bounded recursive SD backups with verified manifest publication, empty-directory preservation, restore previews and explicit confirmation, repeated checksum validation, and restoration into new SD folders only. Added cancellation/progress, incomplete backup marking and partial-restore reporting.
+
+## v0.7.0 — IR Workspace
+
+Added named local libraries, stronger IR validation, selected-signal export, explicit IR capability checks and confirmed single-command device transmission. Added little-endian/range checks, bounded raw CLI conversion, busy/error handling and stale-session protection.
