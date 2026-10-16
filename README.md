@@ -6,7 +6,7 @@ A native Qt desktop companion for Flipper Zero with a neon console interface, US
 
 ![PurpleDragonFlipperStudio interface](assets/Preview-Desktop.png)
 
-*Interface preview from an earlier build; current features are listed below.*
+*Current v1.0.0 desktop screenshot.*
 
 [Downloads](https://github.com/bubblegump30/PurpleDragonFlipperStudio/releases) · [Quick start](docs/QUICKSTART.md) · [1.0 release notes](docs/RELEASE-v1.0.0.md) · [Release history](docs/CHANGELOG.md)
 
