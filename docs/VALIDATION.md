@@ -85,3 +85,7 @@ The initial Windows build found 34 pixels of horizontal overflow in GPIO Lab at 
 ## v0.5.0 validation — 2026-10-16
 
 102 automated tests pass locally. A synthetic CLI emulator covers binary data containing ANSI/prompt sequences, fragmented reads, empty files, upload staging and destination races, size limits, checksum mismatch and atomic replacement failure, timeout/cancellation, root/nonrecursive deletion, UI confirmation/gating, and stale results. Compact SD layout was inspected. No physical SD-card behavior is claimed.
+
+## v0.6.0 validation — 2026-10-16
+
+114 automated tests pass locally. New tests use the synthetic storage CLI to exercise backup/restore round trips, empty folders, payload hashes, corruption and traversal, changed manifests, existing targets, preflight limits, cancellation, incomplete backup rejection, partial restore reporting, confirmation and stale-preview invalidation. Compact UI was inspected. No physical-card recovery claim is made.

@@ -5,9 +5,10 @@ from PySide6.QtWidgets import (QLabel, QLineEdit, QTreeWidget, QTreeWidgetItem, 
                                QFileDialog, QInputDialog, QMessageBox, QProgressBar, QHeaderView)
 from .neon import panel, button
 from .sd_protocol import child_path, sd_path
+from .backup_center import BackupCenterMixin
 
 
-class SDManagerMixin:
+class SDManagerMixin(BackupCenterMixin):
     def build_sd_manager(self, lay):
         self.sd_busy = False
         self.sd_last_error = ''
@@ -67,19 +68,21 @@ class SDManagerMixin:
         self.sd_delete_btn.setEnabled(bool(ready and self.sd_available and entry))
         self.sd_download_btn.setEnabled(bool(ready and self.sd_available and entry and not entry['directory']))
         self.sd_cancel_btn.setEnabled(bool(self.sd_busy))
+        self.update_backup_controls()
 
     def reset_sd_manager(self):
         if not hasattr(self, 'sd_tree'): return
         self.sd_busy = self.sd_available = False
         self.sd_tree.clear(); self.sd_directory = '/ext'; self.sd_path_field.setText('/ext')
         self.sd_progress.setValue(0)
+        self.reset_backup_center()
         self.sd_status.setText((self.sd_last_error + ' Reconnect and identify before retrying.') if self.sd_last_error else 'SD availability has not been checked. Identify the device and probe again.')
         self.update_sd_controls()
 
     def start_sd_operation(self, operation, path, local=None):
         if not self.sd_ready() or self.sd_busy or (operation != 'list' and not self.sd_available): return
         try:
-            sd_path(path, operation == 'list')
+            sd_path(path, operation in ('list','backup','restore_preview','restore'))
             if not self.session.request_storage(operation, path, local):
                 self.sd_status.setText('Serial queue is busy. Let commands finish, then retry.'); return
         except ValueError as exc:
@@ -93,6 +96,9 @@ class SDManagerMixin:
         self.update_sd_controls()
 
     def sd_operation_finished(self, session, result):
+        if result.get('operation') in ('backup','restore_preview','restore'):
+            self.backup_operation_finished(session, result)
+            return
         if session is self.session and not result.get('ok') and self.connection_cancelled:
             self.sd_last_error = result.get('error', 'Operation cancelled.')
             self.sd_status.setText(self.sd_last_error)
@@ -128,6 +134,7 @@ class SDManagerMixin:
     def sd_progress_update(self, session, done, total):
         if session is self.session and self.sd_busy:
             self.sd_progress.setValue(int(done * 100 / total) if total else 100)
+            self.backup_progress.setValue(int(done * 100 / total) if total else 100)
 
     def sd_up(self):
         if self.sd_directory != '/ext': self.start_sd_operation('list', str(PurePosixPath(self.sd_directory).parent))

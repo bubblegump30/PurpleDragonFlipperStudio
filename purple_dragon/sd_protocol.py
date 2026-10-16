@@ -145,9 +145,13 @@ class StorageClient:
         if size > LIMIT:
             raise StorageError('Files are limited to 4 MiB per transfer.')
         data = bytearray()
+        data_deadline = time.monotonic() + 10
         while len(data) < size:
             if not self.buffer:
-                self.fill(time.monotonic() + 10)
+                self.fill(data_deadline)
+                if not self.buffer:
+                    continue
+            data_deadline = time.monotonic() + 10
             take = min(size - len(data), len(self.buffer))
             data.extend(self.buffer[:take]); self.buffer = self.buffer[take:]
             self.progress(len(data), size)
@@ -202,6 +206,12 @@ class StorageClient:
         return {'bytes': len(data), 'sha256': hashlib.sha256(data).hexdigest()}
 
     def execute(self, operation, path, local=None):
+        if operation in ('backup', 'restore_preview', 'restore'):
+            from .backup_service import BackupService
+            service = BackupService(self)
+            if operation == 'backup': return service.backup(sd_path(path), local)
+            if operation == 'restore_preview': return service.preview(local['folder'], local['target'])
+            return service.restore(local)
         sd_path(path, operation == 'list')
         if operation == 'list':
             return {'entries': self.listing(path)}

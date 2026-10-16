@@ -213,6 +213,7 @@ class WorkspaceServices(SDManagerMixin, QMainWindow):
         lay.addWidget(box)
 
     def build_tools(self, lay):
+        self.build_backup_center(lay)
         box, b = panel('Workspace tools')
         b.addWidget(label('Export the local information you have collected in this GUI.', 'muted'))
         b.addWidget(button('Export console transcript', self.export_console))
@@ -224,11 +225,6 @@ class WorkspaceServices(SDManagerMixin, QMainWindow):
         b.addWidget(button('Export session log', self.export_log))
         b.addWidget(button('Export diagnostic report', self.export_diagnostics))
         b.addWidget(button('Help Center · F1', self.beginner_guide))
-        backup = button('Back up Flipper SD card', lambda: None)
-        backup.setToolTip('Requires the RC7 device backup backend.')
-        backup.setEnabled(False)
-        b.addWidget(backup)
-        b.addWidget(label('Device backup, restore and firmware operations await the RC7 backend. Setup import/export handles only local JSON notes.', 'muted'))
         lay.addWidget(box)
 
     def build_apps(self, lay):

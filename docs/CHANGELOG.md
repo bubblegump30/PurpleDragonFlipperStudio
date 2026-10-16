@@ -89,3 +89,7 @@ Added explicit read-only device_info requests through the existing serial worker
 ## v0.5.0 — SD File Manager
 
 Added explicit SD probing, /ext directory navigation, verified binary transfers up to 4 MiB, staged create-new uploads, atomic downloads, folders and confirmed non-recursive deletion. Serial operations share one worker and block text interleaving. Added scrollable navigation for the new workspace.
+
+## v0.6.0 — Backup & Restore Center
+
+Added bounded recursive SD backups with verified manifest publication, empty-directory preservation, restore previews and explicit confirmation, repeated checksum validation, and restoration into new SD folders only. Added cancellation/progress, incomplete backup marking and partial-restore reporting.

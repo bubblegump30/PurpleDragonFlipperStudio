@@ -67,7 +67,9 @@ class FakeStorage:
             if path in self.files: del self.files[path]
             elif path in self.dirs and not any(x.startswith(path + '/') for x in self.files.keys() | self.dirs): self.dirs.remove(path)
             else: body = b'Storage error: directory not empty\r\n'
-        elif verb == 'mkdir': self.dirs.add(path)
+        elif verb == 'mkdir':
+            if path in self.dirs or path in self.files: body = b'Storage error: already exists\r\n'
+            else: self.dirs.add(path)
         else: raise AssertionError(command)
         self.output += body + b'>: '
         return length
@@ -160,6 +162,10 @@ class SDProtocolTests(unittest.TestCase):
         stream = Mock(in_waiting=0); stream.write.side_effect = len; stream.read.return_value = b''
         with patch('purple_dragon.sd_protocol.time.monotonic', side_effect=iter(range(100))):
             with self.assertRaisesRegex(StorageError, 'timed out'): StorageClient(stream).listing('/ext')
+        stalled = Mock(in_waiting=0); stalled.write.side_effect = len
+        stalled.read.side_effect = [b'storage read \"/ext/stall\"\r\nSize: 2\r\n'] + [b'']*100
+        with patch('purple_dragon.sd_protocol.time.monotonic', side_effect=iter(range(100))):
+            with self.assertRaisesRegex(StorageError, 'timed out'): StorageClient(stalled).download('/ext/stall','unused')
         stream = FakeStorage(); stream.dirs.add('/ext/folder'); stream.files['/ext/folder/keep'] = b'keep'
         with self.assertRaises(StorageError): StorageClient(stream).execute('remove','/ext/folder')
         self.assertIn('/ext/folder/keep', stream.files)

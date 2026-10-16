@@ -1,3 +1,25 @@
+# v0.6.0 backup and restore integration
+
+`backup_service.py` implements verified folder backups and previewed restoration through the same `StorageClient` and serial worker. `backup_center.py` adds the UI in Backup & Tools. Backup, restore_preview, and restore use the existing operation exclusion, cancellation, stale-session checks and progress signals.
+
+## Backup format and publication
+
+Backups scan canonical /ext paths recursively and preserve files plus empty folders. Preflight refuses any file over 4 MiB, totals over 256 MiB, or more than 2,000 entries before payload downloads. Local free space is checked. Files are downloaded with existing remote MD5 checks into flat `data/NNNNNN.bin` objects, avoiding Windows path/name collisions. The schema-1 manifest maps validated relative SD paths to object names, sizes and SHA-256 digests. No device UID is included. A 2 MiB maximum manifest and bounded payload reads constrain imported backups.
+
+A unique .incomplete directory is created locally. Only after all files download, the manifest is flushed and all payloads are revalidated is it renamed to the completed backup directory. Incomplete directories are refused by restore. Failures preserve partial data and report the staging location; the app does not claim they are completed backups. The SD snapshot is not atomic across files: other device writes should be stopped, and detected size/hash inconsistencies abort the job.
+
+## Preview and restore contract
+
+A preview verifies every local payload, rejects traversal, duplicate/case-conflicting paths, missing parents, invalid sizes/hashes, symlink payloads and invalid object references, and checks that a new direct child of /ext does not already exist. The preview includes the raw-manifest SHA-256 digest and complete destination paths.
+
+Confirmation passes the exact previewed folder, target and digest. The worker validates them again before creating the new target. Each payload is verified into a bounded private temporary snapshot before upload. Existing staged-upload integrity and create-new semantics remain in force. There is no merge, overwrite, formatting or automatic replacement of active app data. A failed/cancelled restore leaves only newly created destination data/stages and reports the target for inspection.
+
+Both backup and restore have a 30-minute overall deadline; individual echo/write/prompt timeouts remain bounded. SD availability and preview approval are cleared on disconnect. Console sends and identity queries remain excluded while a job is active. Original backups and pre-existing remote files are preserved.
+
+Tests use a synthetic CLI emulator, not real hardware. Validate missing/full/read-only cards, nested and empty folders, real file checksums, cancellation/unplug, oversized preflight and restore confirmation on disposable SD data before relying on this for recovery.
+
+---
+
 # v0.5.0 SD integration
 
 `sd_protocol.py` owns synchronous, bounded binary CLI framing; `SerialSession` executes operations on its existing worker thread. `sd_manager.py` owns the UI and connection-scoped SD availability. There is one serial port owner and no second reader.

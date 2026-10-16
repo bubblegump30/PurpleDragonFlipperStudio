@@ -1,6 +1,6 @@
 # PurpleDragonFlipperStudio
 
-Neon GUI v0.5.0 · Created by KyleAustinHillier @PurpleDragonFoundationLtd
+Neon GUI v0.6.0 · Created by KyleAustinHillier @PurpleDragonFoundationLtd
 
 Rebuilt around your supplied neon-console design: the illustrated brush-style header, dragon and Flipper artwork, compact connection bar, sidebar and horizontal workspace tabs, purple outer frame, blue inner frames, multicolor illuminated GPIO buttons, and two-column GPIO layout. This is a runnable Qt desktop interface with real controls and live Matrix rain.
 
@@ -31,6 +31,7 @@ Export a settings backup before upgrading. Existing saved user settings are reus
 | Area | Available now |
 | --- | --- |
 | Serial | USB serial-port discovery, open/close, bounded text receive, explicit text send with selectable line endings |
+| SD backups | Recursive /ext or selected-folder backups with manifests, checksums, restore previews and confirmed restoration to a new SD folder |
 | SD File Manager | Explicit /ext probe, folder browsing, binary upload/download with integrity checks, folder creation and confirmed non-recursive deletion |
 | Device information | Explicit CLI device_info query, checked Flipper-compatible identity fields, device name/firmware/hardware/protocol values, connection-scoped device_info capability |
 | GPIO setups | Named local experiments, pin choice, notes, save/delete, JSON import/export |
@@ -67,7 +68,7 @@ assets/dragon.png / dragon.ico Dragon branding and Windows icon
 assets/Preview-Desktop.png     Actual app render at 1672×941
 assets/Preview-4K.png          Actual app render at 3840×2160
 PurpleDragon.spec              PyInstaller Windows build recipe
-tests/                        102 GUI, storage, protocol, connection, console and packaging checks
+tests/                        114 GUI, backup/restore, storage, protocol and packaging checks
 ```
 
 Run tests: `python -m unittest discover -s tests -v`.
@@ -90,7 +91,7 @@ Corrected installation guidance, updated creator credits and Help Center text, a
 
 ## Repository and release
 
-[GitHub](https://github.com/bubblegump30/PurpleDragonFlipperStudio) · [v0.5.0 release notes](docs/RELEASE-v0.5.0.md) · [MIT license](LICENSE)
+[GitHub](https://github.com/bubblegump30/PurpleDragonFlipperStudio) · [v0.6.0 release notes](docs/RELEASE-v0.6.0.md) · [MIT license](LICENSE)
 
 The Windows build workflow runs tests, builds the executable, and uploads matching release files as an Actions artifact. It does not publish a release automatically. See [release instructions](docs/GITHUB-UPLOAD.md).
 
@@ -123,3 +124,13 @@ Uploads and downloads support binary files up to **4 MiB**, show byte progress, 
 **Cancel & disconnect** stops host transfer work and closes the serial session. All storage failures also disconnect to avoid returning binary input to the text console. Reconnect, identify and probe before retrying. Failed/cancelled uploads may leave a stage or a newly created partial destination; inspect them before removing anything. No existing remote file is automatically deleted during failure cleanup. Device operations already executing may finish after disconnection.
 
 The same serial worker owns the connection throughout. Console Send and identity queries pause during storage work. Responses are bounded to 64 KiB for text and 2,000 entries per listing; operations have a 120-second overall deadline. MD5 is an integrity check, not authentication. Physical SD-card behavior remains unverified until tested on hardware.
+
+## v0.6.0 — Backup & Restore Center
+
+After **CLI identification → SD Files → Refresh / Probe SD**, open **Backup & Tools**. Back up all `/ext` or the current folder from SD Files. Choose a local parent folder; the app creates a unique backup containing `manifest.json` and flat binary payload objects. Empty directories are preserved. Remote MD5 transfer checks and local SHA-256 manifest checks run before the backup is published.
+
+Limits are **4 MiB per file, 256 MiB total, and 2,000 file/folder entries**. Oversized backups fail preflight; nothing is silently skipped. A failed/cancelled backup is left as `.incomplete` without a usable completed manifest. Backups contain SD file data; they are separate from this app's settings-export feature. This is a file snapshot, not a transactional disk image: stop other device writes first.
+
+To restore, choose a completed backup folder and a **new folder name under `/ext`**, then **Verify & preview**. All payload checksums and paths are validated before the preview lists the destination and files. Confirming restore revalidates the backup and checks that the destination still does not exist. It creates that new folder and uploads verified payload snapshots. It never merges into existing folders, overwrites existing files, or formats the card. Files restored into the new folder do not automatically replace active app data elsewhere on the SD card.
+
+Progress and Cancel & disconnect are available. Backup/restore operations have a 30-minute overall deadline while individual serial command deadlines remain bounded. Cancellation/failure closes the serial session; a partial restore may remain in the new destination. Reconnect, identify and probe before retrying. Physical SD-card validation remains pending.
