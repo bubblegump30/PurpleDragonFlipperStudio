@@ -81,3 +81,7 @@ The initial Windows build found 34 pixels of horizontal overflow in GPIO Lab at 
 ## v0.4.0 validation — 2026-10-16
 
 86 automated tests passed locally. Synthetic official-format fixtures cover fragmented reads, strict identity validation, incomplete/wrong/duplicate/oversized responses, bounded timeout, cancellation before writes, query/send exclusion, busy queues, UART refusal, stale-session results, connection-loss clearing, and identifier-free diagnostics. Fixtures are not captured hardware evidence. Physical Flipper checks remain outstanding.
+
+## v0.5.0 validation — 2026-10-16
+
+102 automated tests pass locally. A synthetic CLI emulator covers binary data containing ANSI/prompt sequences, fragmented reads, empty files, upload staging and destination races, size limits, checksum mismatch and atomic replacement failure, timeout/cancellation, root/nonrecursive deletion, UI confirmation/gating, and stale results. Compact SD layout was inspected. No physical SD-card behavior is claimed.

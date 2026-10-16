@@ -17,6 +17,7 @@ from PySide6.QtWidgets import (
     QGraphicsDropShadowEffect, QButtonGroup, QApplication,
 )
 from .backend import SerialSession, HardwareAdapter, discover_ports
+from .sd_manager import SDManagerMixin
 from .matrix import MatrixRain
 from .ir_files import inspect_ir
 from .theme import THEMES, stylesheet
@@ -39,7 +40,7 @@ def label(text, role=None):
 
 
 
-class WorkspaceServices(QMainWindow):
+class WorkspaceServices(SDManagerMixin, QMainWindow):
 
 
 
@@ -143,27 +144,31 @@ class WorkspaceServices(QMainWindow):
         self.protocol_details.setAccessibleName('Queried device information')
         self.protocol_details.setPlaceholderText('Device name, firmware, hardware and protocol values appear after a successful query.')
         b.addWidget(self.protocol_details)
-        b.addWidget(label('This adapter implements device information only. Battery, SD storage, GPIO, IR transmission and app operations remain unavailable.', 'muted'))
+        b.addWidget(label('Device information and the separate SD File Manager are implemented. Battery, GPIO, IR transmission and app operations remain unavailable.', 'muted'))
         lay.addWidget(box)
 
     def reset_device_identity(self):
         self.device_adapter.reset()
+        self.reset_sd_manager()
         self.identify_btn.setEnabled(False)
         self.protocol_details.clear()
         self.identity_status.setText('Identity unverified. Query again after reconnecting in CLI mode.')
 
     def identify_device(self):
-        if not self.connected or self.session is None or self.mode.currentText() != 'CLI' or self.device_adapter.state == 'querying':
+        if not self.connected or self.session is None or self.mode.currentText() != 'CLI' or self.device_adapter.state == 'querying' or self.sd_busy:
             return
         if not self.session.request_device_info():
             self.identity_status.setText('Serial output is busy. Wait for queued commands to finish, then retry.')
             return
+        self.sd_last_error = ''
+        self.reset_sd_manager()
         self.device_adapter.begin()
         self.protocol_details.clear()
         self.identity_status.setText('Querying device_info… Console Send is paused until the query finishes.')
         self.connection_feedback('Querying read-only device information…')
         self.identify_btn.setEnabled(False)
         self.send_btn.setEnabled(False)
+        self.update_sd_controls()
         self.log('Read-only device information query requested.')
 
     def device_info_finished(self, session, result):
@@ -176,12 +181,13 @@ class WorkspaceServices(QMainWindow):
             self.connection_feedback('Device_info response checked. Other hardware capabilities remain unavailable.')
             self.identity_status.setText('Flipper-compatible identity response checked. This is a protocol check, not cryptographic authentication.')
             self.protocol_details.setPlainText('\n'.join(k.replace('_', ' ').title() + ': ' + v for k, v in self.device_adapter.info.items()) +
-                                              '\n\nImplemented capability: device_info\nGPIO / IR / SD / apps / battery: unavailable')
+                                              '\n\nImplemented capability: device_info\nSD File Manager: probe /ext to check availability\nGPIO / IR / apps / battery: unavailable')
             self.log('Device information received; read-only device_info capability available.')
         else:
             self.identity_status.setText('Identity unverified: ' + self.device_adapter.error)
             self.connection_feedback('Serial open; identity unverified. ' + self.device_adapter.error)
             self.log('Device information query failed; capabilities remain unavailable.', 'Warning')
+        self.update_sd_controls()
 
     def build_ir(self, lay):
         box, b = panel('IR Remote Studio  /  Local file preview')
@@ -452,6 +458,8 @@ class WorkspaceServices(QMainWindow):
         self.session.finished.connect(self.serial_finished)
         current_session = self.session
         self.session.device_info_result.connect(lambda result, session=current_session: self.device_info_finished(session, result))
+        self.session.storage_result.connect(lambda result, session=current_session: self.sd_operation_finished(session, result))
+        self.session.storage_progress.connect(lambda done, total, session=current_session: self.sd_progress_update(session, done, total))
         self.connect_btn.setText('Cancel connection')
         for control in [self.port, self.mode, self.baud, self.refresh_btn]:
             control.setEnabled(False)
@@ -650,7 +658,7 @@ class WorkspaceServices(QMainWindow):
             scrollbar.setValue(old_position)
 
     def send_command(self):
-        if not self.connected or self.session is None or self.device_adapter.state == "querying":
+        if not self.connected or self.session is None or self.device_adapter.state == "querying" or self.sd_busy:
             return
         text = self.command.text()
         if not text:

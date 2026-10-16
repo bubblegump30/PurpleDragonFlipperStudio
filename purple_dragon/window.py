@@ -50,7 +50,7 @@ class MainWindow(base.WorkspaceServices):
             ('GPIO Lab','GPIO LAB','cpu'),('UART Console','UART CONSOLE','terminal'),
             ('Flipper App','FLIPPER APP','cube'),('Device Dashboard','DEVICE DASHBOARD','gauge'),
             ('IR Remote Studio','IR REMOTE STUDIO','radio'),('Backup & Tools','BACKUP & TOOLS','folder'),
-            ('Live Log','LIVE LOG','list'),('Apps & NFC','APPS & NFC','radio'),
+            ('Live Log','LIVE LOG','list'),('Apps & NFC','APPS & NFC','radio'),('SD File Manager','SD FILE MANAGER','folder'),
         ]:
             btn=NeonButton(title,lambda checked=False,n=name:self.navigate(n),'nav',glyph)
             btn.setCheckable(True);btn.setMinimumHeight(51);btn.compact=True
@@ -62,7 +62,7 @@ class MainWindow(base.WorkspaceServices):
             ('GPIO Lab',self.build_gpio),('UART Console',self.build_console),
             ('Flipper App',self.build_flipper_app),('Device Dashboard',self.build_device),
             ('IR Remote Studio',self.build_ir),('Backup & Tools',self.build_tools),
-            ('Apps & NFC',self.build_apps),('Live Log',self.build_log),('Appearance',self.build_appearance),
+            ('Apps & NFC',self.build_apps),('Live Log',self.build_log),('Appearance',self.build_appearance),('SD File Manager',self.build_sd_manager),
         ]:
             page=QWidget();page.setObjectName('content');page.setAttribute(Qt.WidgetAttribute.WA_StyledBackground)
             lay=QVBoxLayout(page);lay.setContentsMargins(0,0,0,0);lay.setSpacing(6)
@@ -100,15 +100,16 @@ class MainWindow(base.WorkspaceServices):
         self.log('Ready • Device services await RC7 integration; serial and local tools are available.')
 
     def build_sidebar(self,outer):
-        sidebar=QFrame();sidebar.setObjectName('sidebar');sidebar.setFixedWidth(172)
-        outer.addWidget(sidebar)
+        sidebar=QFrame();sidebar.setObjectName('sidebar');sidebar.setMinimumWidth(150)
+        sidebar_scroll=QScrollArea();sidebar_scroll.setWidgetResizable(True);sidebar_scroll.setFixedWidth(172)
+        sidebar_scroll.setWidget(sidebar);outer.addWidget(sidebar_scroll)
         lay=QVBoxLayout(sidebar);lay.setContentsMargins(3,14,3,12);lay.setSpacing(5)
         self.nav={};self.nav_group=QButtonGroup(self);self.nav_group.setExclusive(True)
         for name,text,glyph in [
             ('Command Center','Home','home'),('GPIO Lab','GPIO & UART','cpu'),
             ('UART Console','UART Console','terminal'),('Flipper App','Flipper App','cube'),
             ('Device Dashboard','Device\nDashboard','gauge'),('IR Remote Studio','IR Remote\nStudio','radio'),
-            ('Backup & Tools','Backup & Tools','folder'),('Live Log','Live Log','list'),('Apps & NFC','Apps & NFC','radio'),
+            ('Backup & Tools','Backup & Tools','folder'),('Live Log','Live Log','list'),('Apps & NFC','Apps & NFC','radio'),('SD File Manager','SD Files','folder'),
         ]:
             btn=NeonButton(text,lambda checked=False,n=name:self.navigate(n),'nav',glyph)
             btn.setCheckable(True);btn.setMinimumHeight(54)
@@ -167,7 +168,7 @@ class MainWindow(base.WorkspaceServices):
         item=NeonPanel();row=QHBoxLayout(item);row.setContentsMargins(15,1,5,1);row.setSpacing(10)
         row.addWidget(label('Workspace'))
         self.workspace=QComboBox();self.workspace.setMinimumWidth(155)
-        self.workspace.addItems(['GPIO Lab','UART Console','Flipper App','Device Dashboard','IR Remote Studio','Backup & Tools','Live Log','Apps & NFC','Appearance'])
+        self.workspace.addItems(['GPIO Lab','UART Console','Flipper App','Device Dashboard','IR Remote Studio','Backup & Tools','Live Log','Apps & NFC','Appearance','SD File Manager'])
         row.addWidget(self.workspace)
         hint=label('ⓘ  New to Flipper? Start with CLI mode. UART Bridge talks to a separate wired device.','muted')
         row.addWidget(hint,1)
@@ -427,7 +428,8 @@ class MainWindow(base.WorkspaceServices):
         for i,section in enumerate(self.connection_sections):self.connection_grid.addWidget(section,i//2 if narrow else 0,i%2 if narrow else i)
         while self.tab_grid.count():self.tab_grid.takeAt(0)
         tab_narrow=self.width()<1250
-        for i,btn in enumerate(self.tab_buttons.values()):self.tab_grid.addWidget(btn,i//4 if tab_narrow else 0,i%4 if tab_narrow else i)
+        columns=3 if tab_narrow else (5 if self.width()<1800 else 9)
+        for i,btn in enumerate(self.tab_buttons.values()):self.tab_grid.addWidget(btn,i//columns,i%columns)
         self.foundation_button.setVisible(self.width()>=1200)
         if hasattr(self,'gpio_upper'):
 

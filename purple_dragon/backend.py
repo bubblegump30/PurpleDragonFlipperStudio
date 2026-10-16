@@ -3,6 +3,7 @@ import queue
 import codecs
 import time
 import threading
+from .sd_protocol import StorageClient
 from .device_protocol import MAX_RESPONSE, response_complete, parse_device_info
 from PySide6.QtCore import QThread, Signal
 import serial
@@ -19,6 +20,8 @@ class SerialSession(QThread):
     fault = Signal(str)
     closed = Signal()
     device_info_result = Signal(dict)
+    storage_result = Signal(dict)
+    storage_progress = Signal(int, int)
 
     def __init__(self, port, baud, parent=None):
         super().__init__(parent)
@@ -45,8 +48,35 @@ class SerialSession(QThread):
             self.outbox.put_nowait(None)
             return True
 
+    def request_storage(self, operation, path, local=None):
+        with self.query_lock:
+            if self.query_pending or not self.outbox.empty() or self.isInterruptionRequested():
+                return False
+            self.query_pending = True
+            self.outbox.put_nowait({'operation': operation, 'path': path, 'local': local})
+            return True
+
+    def storage_operation(self, stream, request):
+        client = StorageClient(stream, self.isInterruptionRequested, self.storage_progress.emit)
+        result_payload = None
+        try:
+            result = client.execute(request['operation'], request['path'], request['local'])
+            result_payload = {'ok': True, **request, **result}
+        except (ValueError, OSError, UnicodeError) as exc:
+            message = str(exc)
+            if client.staged:
+                message += ' Staged upload may remain at ' + client.staged + '.'
+            result_payload = {'ok': False, **request, 'error': message}
+            # A timeout/cancel can leave binary input pending: never resume text on this session.
+            self.requestInterruption()
+        finally:
+            with self.query_lock:
+                self.query_pending = False
+        self.storage_result.emit(result_payload)
+
     def query_device_info(self, stream, decoder, timeout=4.0):
         response = ''
+        result_payload = None
         try:
             if self.isInterruptionRequested():
                 raise ValueError('Device query cancelled.')
@@ -69,15 +99,17 @@ class SerialSession(QThread):
                     raise ValueError('Device information exceeded the response limit.')
                 if response_complete(response):
                     parse_device_info(response)
-                    self.device_info_result.emit({'ok': True, 'response': response})
+                    result_payload = {'ok': True, 'response': response}
                     return
             raise ValueError('Device query cancelled.' if self.isInterruptionRequested() else
                              'Device query timed out. Check CLI mode and firmware compatibility, then retry.')
         except ValueError as exc:
-            self.device_info_result.emit({'ok': False, 'error': str(exc)})
+            result_payload = {'ok': False, 'error': str(exc)}
         finally:
             with self.query_lock:
                 self.query_pending = False
+            if result_payload is not None:
+                self.device_info_result.emit(result_payload)
 
     def run(self):
         decoder = codecs.getincrementaldecoder('utf-8')(errors='replace')
@@ -88,7 +120,9 @@ class SerialSession(QThread):
                 while not self.isInterruptionRequested():
                     try:
                         payload = self.outbox.get_nowait()
-                        if payload is None:
+                        if isinstance(payload, dict):
+                            self.storage_operation(stream, payload)
+                        elif payload is None:
                             self.query_device_info(stream, decoder)
                         else:
                             stream.write(payload)

@@ -46,7 +46,7 @@ class GuiTests(unittest.TestCase):
     def test_no_port_state_and_navigation(self):
         self.assertFalse(self.window.connect_btn.isEnabled())
         self.assertFalse(self.window.send_btn.isEnabled())
-        self.assertEqual(self.window.stack.count(), 9)
+        self.assertEqual(self.window.stack.count(), 10)
         for name in self.window.pages:
             self.window.nav[name].click()
             self.app.processEvents()

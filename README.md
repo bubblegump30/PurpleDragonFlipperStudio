@@ -1,6 +1,6 @@
 # PurpleDragonFlipperStudio
 
-Neon GUI v0.4.0 · Created by KyleAustinHillier @PurpleDragonFoundationLtd
+Neon GUI v0.5.0 · Created by KyleAustinHillier @PurpleDragonFoundationLtd
 
 Rebuilt around your supplied neon-console design: the illustrated brush-style header, dragon and Flipper artwork, compact connection bar, sidebar and horizontal workspace tabs, purple outer frame, blue inner frames, multicolor illuminated GPIO buttons, and two-column GPIO layout. This is a runnable Qt desktop interface with real controls and live Matrix rain.
 
@@ -31,6 +31,7 @@ Export a settings backup before upgrading. Existing saved user settings are reus
 | Area | Available now |
 | --- | --- |
 | Serial | USB serial-port discovery, open/close, bounded text receive, explicit text send with selectable line endings |
+| SD File Manager | Explicit /ext probe, folder browsing, binary upload/download with integrity checks, folder creation and confirmed non-recursive deletion |
 | Device information | Explicit CLI device_info query, checked Flipper-compatible identity fields, device name/firmware/hardware/protocol values, connection-scoped device_info capability |
 | GPIO setups | Named local experiments, pin choice, notes, save/delete, JSON import/export |
 | GPIO workspace | Reference-based controls, pin information, response area and exportable history pane |
@@ -66,7 +67,7 @@ assets/dragon.png / dragon.ico Dragon branding and Windows icon
 assets/Preview-Desktop.png     Actual app render at 1672×941
 assets/Preview-4K.png          Actual app render at 3840×2160
 PurpleDragon.spec              PyInstaller Windows build recipe
-tests/                        86 GUI, protocol, connection, console, layout and packaging checks
+tests/                        102 GUI, storage, protocol, connection, console and packaging checks
 ```
 
 Run tests: `python -m unittest discover -s tests -v`.
@@ -89,7 +90,7 @@ Corrected installation guidance, updated creator credits and Help Center text, a
 
 ## Repository and release
 
-[GitHub](https://github.com/bubblegump30/PurpleDragonFlipperStudio) · [v0.4.0 release notes](docs/RELEASE-v0.4.0.md) · [MIT license](LICENSE)
+[GitHub](https://github.com/bubblegump30/PurpleDragonFlipperStudio) · [v0.5.0 release notes](docs/RELEASE-v0.5.0.md) · [MIT license](LICENSE)
 
 The Windows build workflow runs tests, builds the executable, and uploads matching release files as an Actions artifact. It does not publish a release automatically. See [release instructions](docs/GITHUB-UPLOAD.md).
 
@@ -112,3 +113,13 @@ Connect the Flipper USB serial port in **CLI** mode, open **Device Dashboard**, 
 The adapter validates the device_info format, Flipper model, hardware target, UID structure, firmware fields, and complete response marker. This is a compatibility check of a device-reported identity, not cryptographic authentication. The only implemented device capability is `device_info`; GPIO, IR transmission, SD storage/backup, app operations and battery queries remain unavailable. Information is cleared on disconnect or transport error. Device identifiers are shown locally and appear in the explicitly requested console capture, but are excluded from diagnostics.
 
 This works without an SD-card query. The Wi-Fi Developer Board is not identified through this action; select the Flipper USB CLI port. If the connection is streaming output or running another CLI command, let it return to its prompt before querying.
+
+## v0.5.0 — SD File Manager
+
+Connect in **CLI** mode → **Device Dashboard → Identify / Refresh device** → **SD Files → Refresh / Probe SD**. File actions enable only after a successful `/ext` listing. Double-click folders to browse; use Up or SD root to navigate. Ctrl+9 opens SD File Manager.
+
+Uploads and downloads support binary files up to **4 MiB**, show byte progress, and check remote MD5 for transfer integrity. Downloads replace the chosen local destination only after verification. Uploads stage a uniquely named `.pd-upload-*.part` file, check it, copy to a new destination using the firmware's create-new operation, verify again, then remove the stage. Existing remote destinations are refused; there is no overwrite or formatting action. Delete requires confirmation and removes only a file or empty folder. All paths stay inside `/ext`.
+
+**Cancel & disconnect** stops host transfer work and closes the serial session. All storage failures also disconnect to avoid returning binary input to the text console. Reconnect, identify and probe before retrying. Failed/cancelled uploads may leave a stage or a newly created partial destination; inspect them before removing anything. No existing remote file is automatically deleted during failure cleanup. Device operations already executing may finish after disconnection.
+
+The same serial worker owns the connection throughout. Console Send and identity queries pause during storage work. Responses are bounded to 64 KiB for text and 2,000 entries per listing; operations have a 120-second overall deadline. MD5 is an integrity check, not authentication. Physical SD-card behavior remains unverified until tested on hardware.

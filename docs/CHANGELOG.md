@@ -85,3 +85,7 @@ Added draggable GPIO panels with compact/wide size persistence and reset, worksp
 ## v0.4.0 — Device Integration Foundation
 
 Added explicit read-only device_info requests through the existing serial worker, strict response checks, connection-scoped identity/capability state, real queried device fields, timeout/cancellation, interleaving prevention, stale-reply protection, and privacy-preserving diagnostics. Hardware actions remain gated.
+
+## v0.5.0 — SD File Manager
+
+Added explicit SD probing, /ext directory navigation, verified binary transfers up to 4 MiB, staged create-new uploads, atomic downloads, folders and confirmed non-recursive deletion. Serial operations share one worker and block text interleaving. Added scrollable navigation for the new workspace.

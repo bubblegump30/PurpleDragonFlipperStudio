@@ -1,3 +1,29 @@
+# v0.5.0 SD integration
+
+`sd_protocol.py` owns synchronous, bounded binary CLI framing; `SerialSession` executes operations on its existing worker thread. `sd_manager.py` owns the UI and connection-scoped SD availability. There is one serial port owner and no second reader.
+
+SD controls require an identified CLI session. Refresh / Probe SD explicitly lists `/ext`; a successful listing adds the implemented `sd_files` capability. Nothing probes storage automatically on connection or identity discovery. Failures, disconnects, and re-identification clear availability and stale directory entries. Late-session results are ignored.
+
+## Protocol and bounds
+
+Commands require a matching echoed command line and a completed CLI prompt. Downloads use the declared Size header and an exact byte count; payloads are never UTF-8 decoded, ANSI-filtered, or searched for prompt delimiters. Uploads use write_chunk with an exact byte count and the Ready handshake. Short serial writes are handled. Transfers are limited to 4 MiB, listings to 2,000 entries and 64 KiB of textual response. Command echo and writes have 10-second deadlines; prompt completion has 30 seconds; each operation has a 120-second overall deadline.
+
+Downloads verify remote MD5 before writing a sibling temporary file and atomically replacing the selected destination. Uploads use a unique sibling `.pd-upload-*.part`, verify its MD5, copy with the firmware's create-new destination semantics, verify the destination, then remove the stage. Firmware rename is deliberately unused because it can remove an existing destination. The create-new copy protects against a destination appearing after the initial listing. MD5 is used for integrity, not trust/authentication.
+
+Only canonical `/ext` paths are accepted; traversal, root mutation, command separators, quotes, backslashes and control characters are rejected. Delete uses storage remove, without recursive deletion. Formatting, internal storage, and remote overwrite are not exposed.
+
+Any storage failure or cancellation closes the serial session so incomplete binary framing cannot become console text. Queued and new text sends/identity queries are excluded while storage is pending. Cancellation does not promise to undo a device operation already executing. Interrupted uploads/copies may leave a stage or a newly created partial destination, never an automatically removed pre-existing destination. The UI preserves a reported staging path when available; otherwise inspect `.pd-upload-*.part` in the chosen directory.
+
+## Primary firmware references
+
+- [Storage commands and byte-counted framing](https://github.com/flipperdevices/flipperzero-firmware/blob/dev/applications/services/storage/storage_cli.c)
+- [Create-new copy versus replacing rename](https://github.com/flipperdevices/flipperzero-firmware/blob/dev/applications/services/storage/storage_external_api.c)
+- [CLI prompt formatting](https://github.com/flipperdevices/flipperzero-firmware/blob/dev/lib/toolbox/cli/shell/cli_shell_line.c)
+
+Tests use a synthetic CLI emulator, not real card captures. Hardware validation must cover missing card, non-ASCII names, folders, zero/binary files, checksums, unplug/cancel during read/write/copy, non-empty folder deletion, read-only/full card, and reconnect. Use disposable test files first.
+
+---
+
 # v0.4.0 device integration foundation
 
 `device_protocol.py` implements a read-only CLI metadata adapter; `backend.py` owns the serial port and executes the explicit query in its existing QThread. There is no second connection or reader. The adapter is separate from the unimplemented RC7 hardware action boundary.

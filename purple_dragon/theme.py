@@ -26,6 +26,9 @@ def stylesheet(accent):
     QComboBox::drop-down { border-left:1px solid #293b59; width:22px; }
     QComboBox::down-arrow { image:url("CHEVRON"); width:14px; height:14px; }
     QComboBox QAbstractItemView { background:#081327; color:#e3edff; selection-background-color:#422563; }
+    QTreeWidget { background:#060f1c; border:1px solid #3b547a; color:#e3edff; }
+    QTreeWidget::item:selected { background:#422563; }
+    QHeaderView::section { background:#13233a; color:#e3edff; padding:6px; border:1px solid #293b59; }
     QLineEdit:focus, QComboBox:focus, QPlainTextEdit:focus { border:1px solid ACCENT; }
     QPlainTextEdit { font-family:'Consolas'; font-size:11px; }
     QPlainTextEdit#gpioResponse { color:#8dff91; }
