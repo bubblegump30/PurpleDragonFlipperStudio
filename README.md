@@ -1,6 +1,6 @@
 # PurpleDragonFlipperStudio
 
-**Neon GUI v1.0.0 · Created by KyleAustinHillier @PurpleDragonFoundationLtd**
+**Neon GUI v1.0.1 · Created by KyleAustinHillier @PurpleDragonFoundationLtd**
 
 A native Qt desktop companion for Flipper Zero with a neon console interface, USB serial tools, digital GPIO Workbench, IR libraries, SD File Manager, verified backups and compatibility reporting.
 
@@ -8,13 +8,17 @@ A native Qt desktop companion for Flipper Zero with a neon console interface, US
 
 *Current v1.0.0 desktop screenshot.*
 
-[Downloads](https://github.com/bubblegump30/PurpleDragonFlipperStudio/releases) · [Quick start](docs/QUICKSTART.md) · [1.0 release notes](docs/RELEASE-v1.0.0.md) · [Release history](docs/CHANGELOG.md)
+[Downloads](https://github.com/bubblegump30/PurpleDragonFlipperStudio/releases) · [Quick start](docs/QUICKSTART.md) · [1.0.1 release notes](docs/RELEASE-v1.0.1.md) · [Release history](docs/CHANGELOG.md)
 
 ## Install
 
 Download **Windows-x64.zip**, extract the whole archive into a new folder, and run **PurpleDragonFlipperStudio.exe**. Keep **_internal** beside the executable. No separate Python installation or administrator rights are required. The package includes README-FIRST.txt, release notes and dependency notices.
 
 Source users: run **Setup.bat**, then **Start.bat**. Standard 64-bit CPython 3.10–3.14 is supported by setup; release CI uses Python 3.12. **Debug-Launch.bat** shows launch errors. Export a settings backup before upgrading and export IR libraries separately. Existing local settings are reused.
+
+## Identity hotfix — 1.0.1
+
+The identity parser now accepts the official 8-byte UID64 (16 hexadecimal digits), while retaining the prior 24-digit format. A complete unsupported identity reply keeps the serial console connected with hardware capabilities disabled; timeouts, oversized replies and transport failures still close the session.
 
 ## First connection
 

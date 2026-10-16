@@ -109,3 +109,7 @@ Added current-session compatibility status, local data checks and identifier-fre
 ## v1.0.0 — Stable Public Release
 
 Consolidated the public documentation and Help Center, added a quick-start guide and dependency/license notices to the Windows ZIP, and introduced offline archive verification for hashes, safe paths, layout and version/commit metadata. Windows CI now launches the built executable with isolated settings, confirms a rendered screenshot and exit, then verifies both release archives before upload. Existing hardware-testing limitations remain explicit.
+
+## v1.0.1 — Device Identity Hotfix
+
+Accepted the official f7 UID64 length (16 hexadecimal digits) alongside the prior 24-digit representation. Complete unsupported identity replies now leave serial open with hardware controls disabled; timeouts/oversized replies/USB errors still close the session. Added five identity regression tests and updated recovery guidance.

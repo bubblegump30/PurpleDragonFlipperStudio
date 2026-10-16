@@ -1,8 +1,19 @@
+# v1.0.1 identity compatibility correction
+
+Official f7 `furi_hal_version_uid_size()` returns 64/8 bytes; `furi_hal_info_get` prints those bytes as two hex digits each. The adapter's previous 24-character requirement rejected that 16-character UID64. It now accepts 16 or the previous 24 hex characters without relaxing hardware model/target or firmware/format checks.
+
+The worker distinguishes a complete, bounded response ending in protobuf_version_minor from a timeout/transport/oversize failure. If a complete response fails identity validation it emits ok=false,recoverable=true and releases the query lock without interrupting serial. The GUI retains the unsupported reason and console connection but grants no device capabilities. Timeout/oversize/USB failures remain fatal; they are not converted to recoverable results. No automatic retry or alternative hardware command is sent.
+
+Sources inspected 2026-10-16:
+- https://github.com/flipperdevices/flipperzero-firmware/blob/dev/targets/f7/furi_hal/furi_hal_version.c
+- https://github.com/flipperdevices/flipperzero-firmware/blob/dev/targets/f7/furi_hal/furi_hal_info.c
+- https://github.com/flipperdevices/flipperzero-firmware/blob/dev/applications/services/cli/cli_main_commands.c
+
 # v0.9.0 reliability and compatibility
 
 `compatibility.py` builds a bounded local snapshot from current adapter state. UI support rows are not a firmware allowlist: only current response checks enable capabilities. Local checks validate settings status and the two local data stores without mutation or hardware commands. Report fields are explicitly selected; no device names/UIDs/USB serials, notes, transcript or raw errors. Export is explicit and diagnostics embeds the snapshot.
 
-The serial worker now has a threading.Event stop latch alongside Qt interruption; cancellation before start is retained and run returns before serial access. All queue APIs reject interrupted workers. Queued operation data is deep-copied before pending state is set. Failed identity operations mark interruption before publishing their failure; the loop exits without reading again. No retry or replay occurs.
+The serial worker now has a threading.Event stop latch alongside Qt interruption; cancellation before start is retained and run returns before serial access. All queue APIs reject interrupted workers. Queued operation data is deep-copied before pending state is set. Incomplete or transport-failed identity operations mark interruption before publishing their failure; the loop exits without reading again. No retry or replay occurs.
 
 Opened/received/fault/finished callbacks capture the worker and are delivered only while it is the current session. Operation failures are routed to their workspace, then invalidate all capabilities and retain the original cause in connection recovery. Manual console sends reset identity, SD availability/restore preview, IR support and GPIO tracking before another workspace operation can start. The next device operation requires fresh identification/support checks.
 

@@ -26,7 +26,7 @@ def parse_device_info(text):
         raise ValueError('Unsupported or missing device_info format (expected major 2).')
     if values.get('hardware_model', '').replace(' ', '').lower() != 'flipperzero':
         raise ValueError('The response does not identify a Flipper Zero model.')
-    if values.get('hardware_target') != '7' or not re.fullmatch(r'[0-9A-Fa-f]{24}', values.get('hardware_uid', '')):
+    if values.get('hardware_target') != '7' or not re.fullmatch(r'(?:[0-9A-Fa-f]{16}|[0-9A-Fa-f]{24})', values.get('hardware_uid', '')):
         raise ValueError('Missing or incompatible Flipper hardware identity fields.')
     if not values.get('firmware_version') or not values.get('firmware_commit'):
         raise ValueError('Incomplete firmware information.')

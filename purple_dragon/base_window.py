@@ -213,8 +213,9 @@ class WorkspaceServices(GPIOWorkbenchMixin, IRWorkspaceMixin, SDManagerMixin, QM
         if session is not self.session or not self.connected or self.connection_cancelled or self.connection_lost or self.last_connection_error or self.device_adapter.state != 'querying':
             return
         self.device_adapter.complete(result)
-        self.identify_btn.setEnabled(bool(result.get('ok') and self.device_adapter.state=='identified' and self.mode.currentText()=='CLI'))
-        self.send_btn.setEnabled(bool(result.get('ok') and self.device_adapter.state=='identified'))
+        recoverable=result.get('recoverable') is True
+        self.identify_btn.setEnabled(bool((recoverable or self.device_adapter.state=='identified') and self.mode.currentText()=='CLI'))
+        self.send_btn.setEnabled(bool(recoverable or self.device_adapter.state=='identified'))
         if self.device_adapter.state == 'identified':
             self.connection_feedback('Device_info response checked. Use workspace support checks for GPIO, IR and SD.')
             self.identity_status.setText('Flipper-compatible identity response checked. This is a protocol check, not cryptographic authentication.')
@@ -224,8 +225,12 @@ class WorkspaceServices(GPIOWorkbenchMixin, IRWorkspaceMixin, SDManagerMixin, QM
         else:
             self.identity_status.setText('Identity unverified: ' + self.device_adapter.error)
             self.connection_feedback('Serial open; identity unverified. ' + self.device_adapter.error)
-            self.log('Device information query failed; reconnect required.', 'Warning')
-            self.serial_fault('Identity query failed: '+self.device_adapter.error)
+            if recoverable:
+                self.log('Complete identity reply unsupported; serial connection remains open.', 'Warning')
+                self.connection_feedback('Serial connected; identity unsupported: '+self.device_adapter.error)
+            else:
+                self.log('Device information query failed; reconnect required.', 'Warning')
+                self.serial_fault('Identity query failed: '+self.device_adapter.error)
         self.update_sd_controls()
 
     def build_ir(self, lay):

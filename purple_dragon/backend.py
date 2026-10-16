@@ -111,8 +111,14 @@ class SerialSession(QThread):
                 if len(response) > MAX_RESPONSE:
                     raise ValueError('Device information exceeded the response limit.')
                 if response_complete(response):
-                    parse_device_info(response)
-                    result_payload = {'ok': True, 'response': response}
+                    try:
+                        parse_device_info(response)
+                    except ValueError as exc:
+                        # A complete, bounded identity reply is synchronized enough for
+                        # the console. Reject capabilities without closing USB serial.
+                        result_payload={'ok':False,'recoverable':True,'error':str(exc)}
+                    else:
+                        result_payload = {'ok': True, 'response': response}
                     return
             raise ValueError('Device query cancelled.' if self.isInterruptionRequested() else
                              'Device query timed out. Check CLI mode and firmware compatibility, then retry.')

@@ -1,6 +1,6 @@
 # PurpleDragonFlipperStudio 1.0 — Start here
 
-Neon GUI v1.0.0 · Created by KyleAustinHillier @PurpleDragonFoundationLtd
+Neon GUI v1.0.1 · Created by KyleAustinHillier @PurpleDragonFoundationLtd
 
 ## Install and open
 
@@ -30,7 +30,7 @@ Press F1 for the searchable Help Center. Ctrl+K selects a workspace. Ctrl+L open
 
 ## Recovery and upgrades
 
-Reconnect explicitly after errors, identify, then repeat support checks. No automatic reconnection or replay occurs. Cancel & disconnect closes the serial transport; commands already executing may finish. **Disconnect does not reset physical GPIO outputs.** IR already emitted cannot be recalled. Interrupted SD writes/restores may leave partial new data; inspect them before retrying.
+A complete unsupported identity response leaves serial open and device controls disabled; see its reason in Device Dashboard. Timeouts and transport errors still close the session. Reconnect explicitly after those errors, identify, then repeat support checks. No automatic reconnection or replay occurs. Cancel & disconnect closes the serial transport; commands already executing may finish. **Disconnect does not reset physical GPIO outputs.** IR already emitted cannot be recalled. Interrupted SD writes/restores may leave partial new data; inspect them before retrying.
 
 Before upgrading, export a settings backup and separately export IR libraries (.ir). Copy any command favorites you want to preserve outside local settings. The existing settings-backup schema covers presets and included preferences, not every local store. Install into a new folder; existing user settings are reused. Keep the older application folder if you need to return to it. Restoring a settings backup replaces its included fields after confirmation.
 
