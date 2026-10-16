@@ -101,3 +101,7 @@ The initial Windows build found 34 pixels of horizontal overflow in GPIO Lab at 
 ## v0.9.0 validation — 2026-10-16
 
 160 tests pass locally. Seventeen new checks cover stop-before-start/no port access, rejection after interruption, queue payload snapshots/copy failure, identity timeout/OSError shutdown, no post-failure reads, malformed identity types, exact echo and prompt/error boundaries, actual Qt transport signal bindings across replacement sessions, compatibility privacy and export, observed capability status, manual-send invalidation, error persistence, stale failure rejection, corrupt local stores and failed-query UI gates. Existing protocol, UI, SD, backup, IR and GPIO tests remain included. Dashboard layouts were inspected at compact/desktop sizes with 200% scaling and no horizontal page overflow. Physical hardware behavior is unverified.
+
+## v1.0.0 validation — 2026-10-16
+
+172 automated tests pass locally, including twelve public-release checks for matching archive/commit metadata, included guides, changed payloads, checksum mismatch, unsafe paths, wrong Windows/source versions, incomplete runtime layout, manifest traversal, preflight failures, source-only output and isolated smoke-test arguments. Windows CI now additionally launches the actual packaged executable headlessly with temporary settings, requires a PNG render and clean exit, and verifies source/Windows archives before upload. These workflow results are checked separately from the local tests. Interactive Windows and physical hardware validation remain pending.

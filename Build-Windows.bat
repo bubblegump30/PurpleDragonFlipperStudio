@@ -9,7 +9,7 @@ if errorlevel 1 goto failed
 if errorlevel 1 goto failed
 echo Build complete: dist\PurpleDragonFlipperStudio\PurpleDragonFlipperStudio.exe
 echo Distribute the entire PurpleDragonFlipperStudio folder, including _internal.
-echo This is a GUI preview build; device services still require integration.
+echo Run the packaged smoke test before distribution. Physical hardware validation is separate.
 pause
 exit /b 0
 :failed

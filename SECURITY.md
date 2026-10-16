@@ -2,7 +2,7 @@
 
 ## Supported versions
 
-Security fixes target the latest code on `main` and the latest published release, currently v0.3.0. Earlier versions are not separately maintained. There is no guaranteed response or patch deadline.
+Security fixes target the latest code on `main` and the latest published release. The current prepared release is v1.0.0; publication status is shown on GitHub Releases. Earlier versions are not separately maintained. There is no guaranteed response or patch deadline.
 
 ## Reporting a vulnerability
 

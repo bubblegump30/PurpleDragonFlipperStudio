@@ -105,3 +105,7 @@ Added a digital GPIO CLI adapter for eight regular header pins, explicit support
 ## v0.9.0 — Reliability & Compatibility
 
 Added current-session compatibility status, local data checks and identifier-free report export. Bound transport callbacks to their originating session, latched cancellation before thread startup, closed failed identity queries, preserved operation error causes, copied queued payloads and unified strict echo/prompt framing. Manual console sends now invalidate all device checks and restore previews.
+
+## v1.0.0 — Stable Public Release
+
+Consolidated the public documentation and Help Center, added a quick-start guide and dependency/license notices to the Windows ZIP, and introduced offline archive verification for hashes, safe paths, layout and version/commit metadata. Windows CI now launches the built executable with isolated settings, confirms a rendered screenshot and exit, then verifies both release archives before upload. Existing hardware-testing limitations remain explicit.

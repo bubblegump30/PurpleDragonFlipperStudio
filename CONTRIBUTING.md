@@ -1,6 +1,6 @@
 # Contributing to PurpleDragonFlipperStudio
 
-Neon GUI v0.3.0 · Created by KyleAustinHillier @PurpleDragonFoundationLtd
+Neon GUI v1.0.0 · Created by KyleAustinHillier @PurpleDragonFoundationLtd
 
 Thank you for helping improve the desktop app. Read the [Code of Conduct](CODE_OF_CONDUCT.md) before participating.
 

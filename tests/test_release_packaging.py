@@ -18,6 +18,8 @@ class ReleasePackagingTests(unittest.TestCase):
             root = Path(tmp)
             (root / 'purple_dragon').mkdir()
             (root / 'purple_dragon/__init__.py').write_text('__version__ = "0.3.1"\n')
+            (root/'docs').mkdir();(root/'scripts').mkdir()
+            for name in ['docs/QUICKSTART.md','docs/DEPENDENCIES.md','docs/RELEASE-v0.3.1.md','LICENSE','scripts/verify_release.py']:(root/name).write_text('fixture')
             def git(*args):
                 return subprocess.check_output(['git', '-C', str(root), *args])
             git('init', '-q')

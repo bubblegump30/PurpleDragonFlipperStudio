@@ -29,8 +29,12 @@ jobs:
         run: python -m unittest discover -s tests -v
       - name: Build executable folder
         run: python -m PyInstaller --clean --noconfirm PurpleDragon.spec
+      - name: Smoke test packaged GUI
+        run: python scripts/smoke_windows.py dist/PurpleDragonFlipperStudio/PurpleDragonFlipperStudio.exe
       - name: Package matching release assets
         run: python scripts/package_release.py --windows dist/PurpleDragonFlipperStudio --output release-assets
+      - name: Verify release archives
+        run: python scripts/verify_release.py release-assets --expected-commit ${{ github.sha }} --require-windows
       - name: Upload release assets
         uses: actions/upload-artifact@v6
         with:
