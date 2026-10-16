@@ -1,3 +1,26 @@
+# v0.4.0 device integration foundation
+
+`device_protocol.py` implements a read-only CLI metadata adapter; `backend.py` owns the serial port and executes the explicit query in its existing QThread. There is no second connection or reader. The adapter is separate from the unimplemented RC7 hardware action boundary.
+
+## Request lifecycle
+
+Device Dashboard → Identify / Refresh device is available only for an open CLI connection. It queues exactly `device_info` followed by carriage return. No identification runs on startup, connection, or UART Bridge sessions. Queued console sends must finish first; new sends are excluded while querying. The worker preserves incoming text in the console, limits responses to 64 Ki characters and waits at most four seconds for the response after sending. Disconnect requests interruption; a serial fault ends the transport normally.
+
+The parser accepts underscore device_info major 2 responses, model Flipper Zero, hardware target 7, a 24-digit hexadecimal hardware UID, firmware version/commit, and numeric protobuf version fields. The final newline-terminated protobuf_version_minor field marks completion. Duplicate keys and malformed or incomplete required fields are rejected. Other firmware formats are unsupported until covered by explicit fixtures.
+
+The UI handles only a result from its current session and pending query. States are unverified, querying, identified, and unsupported. Each query clears prior values; connection loss/fault clears identity and capabilities. The sole implemented capability is device_info. Protocol identity is device-reported and is not authentication. No GPIO/IR/storage/app capabilities are inferred from firmware command availability.
+
+The local dashboard shows queried fields; diagnostics contain only identity state and implemented capability names. A requested query's output is retained in the console and can include the device UID; users choose whether to export that transcript. Battery and storage values remain unknown.
+
+## Primary protocol references
+
+- [Official CLI command registration and formatting](https://github.com/flipperdevices/flipperzero-firmware/blob/dev/applications/services/cli/cli_main_commands.c)
+- [Official device_info fields and final-field marker](https://github.com/flipperdevices/flipperzero-firmware/blob/dev/targets/f7/furi_hal/furi_hal_info.c)
+
+Synthetic protocol fixtures exercise this contract. No physical-device success is claimed. Verify Identify, timeout/retry, unplug during query, UART refusal, cancellation, and reconnect on the actual Flipper before declaring hardware compatibility.
+
+---
+
 # Connect the GUI to GPIO & UART Lab RC7
 
 This package reproduces the neon workspace arrangement of the supplied design reference. The new layout is in `window.py`, its painted controls are in `neon.py`, and shared serial/local workflows are in `base_window.py`. RC7 source was unavailable, so existing device behavior has not been migrated or modified.

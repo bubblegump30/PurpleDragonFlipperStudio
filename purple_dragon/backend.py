@@ -1,6 +1,9 @@
 """Serial transport and extension boundary; no automatic hardware commands."""
 import queue
 import codecs
+import time
+import threading
+from .device_protocol import MAX_RESPONSE, response_complete, parse_device_info
 from PySide6.QtCore import QThread, Signal
 import serial
 from serial.tools import list_ports
@@ -15,18 +18,66 @@ class SerialSession(QThread):
     received = Signal(str)
     fault = Signal(str)
     closed = Signal()
+    device_info_result = Signal(dict)
 
     def __init__(self, port, baud, parent=None):
         super().__init__(parent)
         self.port, self.baud = port, baud
         self.outbox = queue.Queue(maxsize=32)
+        self.query_lock = threading.Lock()
+        self.query_pending = False
 
     def send(self, text):
-        try:
-            self.outbox.put_nowait(text.encode('utf-8'))
+        with self.query_lock:
+            if self.query_pending:
+                return False
+            try:
+                self.outbox.put_nowait(text.encode('utf-8'))
+                return True
+            except queue.Full:
+                return False
+
+    def request_device_info(self):
+        with self.query_lock:
+            if self.query_pending or not self.outbox.empty() or self.isInterruptionRequested():
+                return False
+            self.query_pending = True
+            self.outbox.put_nowait(None)
             return True
-        except queue.Full:
-            return False
+
+    def query_device_info(self, stream, decoder, timeout=4.0):
+        response = ''
+        try:
+            if self.isInterruptionRequested():
+                raise ValueError('Device query cancelled.')
+            # Preserve buffered incoming console text before issuing the explicit query.
+            waiting = stream.in_waiting
+            if waiting > MAX_RESPONSE:
+                raise ValueError('Serial input is busy. Wait for output to settle and retry.')
+            if waiting:
+                self.received.emit(decoder.decode(stream.read(waiting)))
+            stream.write(b'device_info\r')
+            deadline = time.monotonic() + timeout
+            while time.monotonic() < deadline and not self.isInterruptionRequested():
+                data = stream.read(min(max(stream.in_waiting, 1), 4096))
+                if not data:
+                    continue
+                text = decoder.decode(data)
+                self.received.emit(text)
+                response += text
+                if len(response) > MAX_RESPONSE:
+                    raise ValueError('Device information exceeded the response limit.')
+                if response_complete(response):
+                    parse_device_info(response)
+                    self.device_info_result.emit({'ok': True, 'response': response})
+                    return
+            raise ValueError('Device query cancelled.' if self.isInterruptionRequested() else
+                             'Device query timed out. Check CLI mode and firmware compatibility, then retry.')
+        except ValueError as exc:
+            self.device_info_result.emit({'ok': False, 'error': str(exc)})
+        finally:
+            with self.query_lock:
+                self.query_pending = False
 
     def run(self):
         decoder = codecs.getincrementaldecoder('utf-8')(errors='replace')
@@ -37,7 +88,10 @@ class SerialSession(QThread):
                 while not self.isInterruptionRequested():
                     try:
                         payload = self.outbox.get_nowait()
-                        stream.write(payload)
+                        if payload is None:
+                            self.query_device_info(stream, decoder)
+                        else:
+                            stream.write(payload)
                     except queue.Empty:
                         pass
                     data = stream.read(min(max(stream.in_waiting, 1), 4096))

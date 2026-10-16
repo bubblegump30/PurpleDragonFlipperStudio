@@ -10,6 +10,7 @@ from PySide6.QtWidgets import (
 from . import base_window as base
 from .base_window import ASSETS, WEBSITE, label
 from .backend import HardwareAdapter
+from .device_protocol import DeviceInfoAdapter
 from .theme import THEMES, stylesheet
 from .neon import NeonButton,NeonPanel,HeaderArt,ChipArt,panel,button,icon
 from .matrix import MatrixRain
@@ -20,6 +21,7 @@ class MainWindow(base.WorkspaceServices):
         QMainWindow.__init__(self)
         self.settings=settings or QSettings('PurpleDragonFoundation','FlipperGUI')
         self.adapter=adapter or HardwareAdapter()
+        self.device_adapter=DeviceInfoAdapter()
         self.session=None;self.connected=False;self.port_info={}
         self.last_connection_error=None;self.connection_cancelled=False
         self.connection_state="disconnected";self.connection_lost=False;self.last_session_port=None

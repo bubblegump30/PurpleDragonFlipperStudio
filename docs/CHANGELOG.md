@@ -81,3 +81,7 @@ Added persistent command favorites, receive timestamp toggle, bounded capture wh
 ## v0.3.4 — Workspace Polish
 
 Added draggable GPIO panels with compact/wide size persistence and reset, workspace/search focus shortcuts, accessible control names, helpful tooltips, and cached multi-resolution icons. Fixed transient compact-layout overflow.
+
+## v0.4.0 — Device Integration Foundation
+
+Added explicit read-only device_info requests through the existing serial worker, strict response checks, connection-scoped identity/capability state, real queried device fields, timeout/cancellation, interleaving prevention, stale-reply protection, and privacy-preserving diagnostics. Hardware actions remain gated.

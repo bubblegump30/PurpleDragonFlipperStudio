@@ -130,8 +130,58 @@ class WorkspaceServices(QMainWindow):
         self.device_details.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         b.addWidget(self.device_details)
         b.addWidget(button('Connection details', self.show_connection_details))
-        b.addWidget(label('Battery, firmware, SD storage and device name require the device protocol adapter. Values will appear only after successful queries.', 'muted'))
+        self.identify_btn = button('Identify / Refresh device', self.identify_device, True)
+        self.identify_btn.setEnabled(False)
+        self.identify_btn.setToolTip('In CLI mode, explicitly sends read-only device_info. Four-second response timeout; console Send pauses during the query.')
+        b.addWidget(self.identify_btn)
+        self.identity_status = label('Identity unverified. Opening a serial port does not identify a device.', 'muted')
+        self.identity_status.setTextFormat(Qt.TextFormat.PlainText)
+        b.addWidget(self.identity_status)
+        self.protocol_details = QPlainTextEdit()
+        self.protocol_details.setReadOnly(True)
+        self.protocol_details.setMinimumHeight(180)
+        self.protocol_details.setAccessibleName('Queried device information')
+        self.protocol_details.setPlaceholderText('Device name, firmware, hardware and protocol values appear after a successful query.')
+        b.addWidget(self.protocol_details)
+        b.addWidget(label('This adapter implements device information only. Battery, SD storage, GPIO, IR transmission and app operations remain unavailable.', 'muted'))
         lay.addWidget(box)
+
+    def reset_device_identity(self):
+        self.device_adapter.reset()
+        self.identify_btn.setEnabled(False)
+        self.protocol_details.clear()
+        self.identity_status.setText('Identity unverified. Query again after reconnecting in CLI mode.')
+
+    def identify_device(self):
+        if not self.connected or self.session is None or self.mode.currentText() != 'CLI' or self.device_adapter.state == 'querying':
+            return
+        if not self.session.request_device_info():
+            self.identity_status.setText('Serial output is busy. Wait for queued commands to finish, then retry.')
+            return
+        self.device_adapter.begin()
+        self.protocol_details.clear()
+        self.identity_status.setText('Querying device_info… Console Send is paused until the query finishes.')
+        self.connection_feedback('Querying read-only device information…')
+        self.identify_btn.setEnabled(False)
+        self.send_btn.setEnabled(False)
+        self.log('Read-only device information query requested.')
+
+    def device_info_finished(self, session, result):
+        if session is not self.session or not self.connected or self.connection_cancelled or self.connection_lost or self.last_connection_error or self.device_adapter.state != 'querying':
+            return
+        self.device_adapter.complete(result)
+        self.identify_btn.setEnabled(self.mode.currentText() == 'CLI')
+        self.send_btn.setEnabled(True)
+        if self.device_adapter.state == 'identified':
+            self.connection_feedback('Device_info response checked. Other hardware capabilities remain unavailable.')
+            self.identity_status.setText('Flipper-compatible identity response checked. This is a protocol check, not cryptographic authentication.')
+            self.protocol_details.setPlainText('\n'.join(k.replace('_', ' ').title() + ': ' + v for k, v in self.device_adapter.info.items()) +
+                                              '\n\nImplemented capability: device_info\nGPIO / IR / SD / apps / battery: unavailable')
+            self.log('Device information received; read-only device_info capability available.')
+        else:
+            self.identity_status.setText('Identity unverified: ' + self.device_adapter.error)
+            self.connection_feedback('Serial open; identity unverified. ' + self.device_adapter.error)
+            self.log('Device information query failed; capabilities remain unavailable.', 'Warning')
 
     def build_ir(self, lay):
         box, b = panel('IR Remote Studio  /  Local file preview')
@@ -274,6 +324,7 @@ class WorkspaceServices(QMainWindow):
             return  # Discovery failure is not evidence that the device was unplugged.
         if self.session.port not in available:
             self.connection_lost = True
+            self.reset_device_identity()
             self.connection_state = 'lost'
             self.connected = False
             self.send_btn.setEnabled(False)
@@ -353,6 +404,7 @@ class WorkspaceServices(QMainWindow):
             self.connection_feedback('Select a port and connect.' if ports else 'Connect your device by USB, close other serial tools, then refresh.')
 
     def serial_fault(self, message):
+        self.reset_device_identity()
         self.last_connection_error = message
         self.connection_state = 'lost' if self.connection_lost else 'error'
         self.send_btn.setEnabled(False)
@@ -362,6 +414,7 @@ class WorkspaceServices(QMainWindow):
     def toggle_connection(self):
         if self.session is not None:
             self.connection_cancelled = True
+            self.reset_device_identity()
             self.connection_state = "closing"
             self.send_btn.setEnabled(False)
             self.badge.setText('○  DISCONNECTING')
@@ -397,6 +450,8 @@ class WorkspaceServices(QMainWindow):
         self.session.received.connect(self.receive)
         self.session.fault.connect(self.serial_fault)
         self.session.finished.connect(self.serial_finished)
+        current_session = self.session
+        self.session.device_info_result.connect(lambda result, session=current_session: self.device_info_finished(session, result))
         self.connect_btn.setText('Cancel connection')
         for control in [self.port, self.mode, self.baud, self.refresh_btn]:
             control.setEnabled(False)
@@ -408,6 +463,8 @@ class WorkspaceServices(QMainWindow):
         if self.connection_cancelled or self.connection_lost or self.last_connection_error:
             return
         self.connected = True
+        self.reset_device_identity()
+        self.identify_btn.setEnabled(self.mode.currentText() == "CLI")
         self.connection_state = "connected"
         self.badge.setText('●  SERIAL CONNECTED')
         self.connect_btn.setText('Disconnect')
@@ -423,6 +480,7 @@ class WorkspaceServices(QMainWindow):
         self.log('Serial transport connected: ' + self.port.currentData())
 
     def serial_finished(self):
+        self.reset_device_identity()
         if self.connected and not self.connection_cancelled and not self.last_connection_error:
             self.connection_lost = True
             self.last_connection_error = 'Serial transport closed unexpectedly.'
@@ -592,7 +650,7 @@ class WorkspaceServices(QMainWindow):
             scrollbar.setValue(old_position)
 
     def send_command(self):
-        if not self.connected or self.session is None:
+        if not self.connected or self.session is None or self.device_adapter.state == "querying":
             return
         text = self.command.text()
         if not text:
@@ -765,7 +823,8 @@ class WorkspaceServices(QMainWindow):
                         'pyside6': PySide6.__version__, 'pyserial': serial.__version__},
             'workspace': self.workspace.currentText(), 'theme': self.theme.currentText(),
             'connection': {'state': self.connection_state,
-                           'detected_port_count': len(self.port_info), 'last_error_present': bool(self.last_connection_error)},
+                           'detected_port_count': len(self.port_info), 'last_error_present': bool(self.last_connection_error),
+                           'identity_state': self.device_adapter.state, 'implemented_capabilities': sorted(self.device_adapter.capabilities)},
             'settings': {'status': self.settings.status().name, 'preset_store_valid': error is None,
                          'preset_count': len(self.profiles()) if error is None else None},
             'buffers': {'retained_log_entries': len(self.log_entries), 'command_history_entries': len(self.command_history)},

@@ -1,6 +1,6 @@
 # PurpleDragonFlipperStudio
 
-Neon GUI v0.3.4 · Created by KyleAustinHillier @PurpleDragonFoundationLtd
+Neon GUI v0.4.0 · Created by KyleAustinHillier @PurpleDragonFoundationLtd
 
 Rebuilt around your supplied neon-console design: the illustrated brush-style header, dragon and Flipper artwork, compact connection bar, sidebar and horizontal workspace tabs, purple outer frame, blue inner frames, multicolor illuminated GPIO buttons, and two-column GPIO layout. This is a runnable Qt desktop interface with real controls and live Matrix rain.
 
@@ -31,6 +31,7 @@ Export a settings backup before upgrading. Existing saved user settings are reus
 | Area | Available now |
 | --- | --- |
 | Serial | USB serial-port discovery, open/close, bounded text receive, explicit text send with selectable line endings |
+| Device information | Explicit CLI device_info query, checked Flipper-compatible identity fields, device name/firmware/hardware/protocol values, connection-scoped device_info capability |
 | GPIO setups | Named local experiments, pin choice, notes, save/delete, JSON import/export |
 | GPIO workspace | Reference-based controls, pin information, response area and exportable history pane |
 | Appearance | Eight themes, inline theme switching, glow, Matrix controls, persistent settings |
@@ -65,7 +66,7 @@ assets/dragon.png / dragon.ico Dragon branding and Windows icon
 assets/Preview-Desktop.png     Actual app render at 1672×941
 assets/Preview-4K.png          Actual app render at 3840×2160
 PurpleDragon.spec              PyInstaller Windows build recipe
-tests/                        77 GUI, setup, navigation, connection, console, layout and packaging checks
+tests/                        86 GUI, protocol, connection, console, layout and packaging checks
 ```
 
 Run tests: `python -m unittest discover -s tests -v`.
@@ -88,7 +89,7 @@ Corrected installation guidance, updated creator credits and Help Center text, a
 
 ## Repository and release
 
-[GitHub](https://github.com/bubblegump30/PurpleDragonFlipperStudio) · [v0.3.4 release notes](docs/RELEASE-v0.3.4.md) · [MIT license](LICENSE)
+[GitHub](https://github.com/bubblegump30/PurpleDragonFlipperStudio) · [v0.4.0 release notes](docs/RELEASE-v0.4.0.md) · [MIT license](LICENSE)
 
 The Windows build workflow runs tests, builds the executable, and uploads matching release files as an Actions artifact. It does not publish a release automatically. See [release instructions](docs/GITHUB-UPLOAD.md).
 
@@ -103,3 +104,11 @@ Save up to 50 local command favorites; Load fills the draft and never sends it. 
 ## v0.3.4 — Workspace Polish
 
 Drag the GPIO panel dividers to resize Pin Control/Presets and Response/Pin Information. Compact windows stack them vertically; wide windows place them side by side. Each layout keeps separate local proportions. Ctrl+Shift+0 resets panel sizes. Ctrl+K opens the workspace selector, Ctrl+F opens Console search, and Ctrl+L reveals the command draft. Added accessible control names, focused tooltips, and cached icons rendered at multiple resolutions for high-DPI displays. Panel proportions are not included in settings backups.
+
+## v0.4.0 — Device Integration Foundation
+
+Connect the Flipper USB serial port in **CLI** mode, open **Device Dashboard**, and click **Identify / Refresh device**. This explicitly sends the read-only `device_info` command through the existing serial worker. Nothing is queried automatically on connect. Console Send pauses during the query, which has a four-second response timeout and can be cancelled by disconnecting.
+
+The adapter validates the device_info format, Flipper model, hardware target, UID structure, firmware fields, and complete response marker. This is a compatibility check of a device-reported identity, not cryptographic authentication. The only implemented device capability is `device_info`; GPIO, IR transmission, SD storage/backup, app operations and battery queries remain unavailable. Information is cleared on disconnect or transport error. Device identifiers are shown locally and appear in the explicitly requested console capture, but are excluded from diagnostics.
+
+This works without an SD-card query. The Wi-Fi Developer Board is not identified through this action; select the Flipper USB CLI port. If the connection is streaming output or running another CLI command, let it return to its prompt before querying.

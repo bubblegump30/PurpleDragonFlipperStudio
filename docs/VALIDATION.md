@@ -77,3 +77,7 @@ The initial Windows build found 34 pixels of horizontal overflow in GPIO Lab at 
 ## v0.3.4 validation — 2026-10-05
 
 77 automated tests passed locally. New checks cover splitter orientation, independent compact/wide settings, restart/reset, invalid settings recovery, keyboard focus and no-send navigation. Offscreen workspace checks passed at 150% and 200% display scale; actual UI renders were inspected. Physical hardware integration remains unverified.
+
+## v0.4.0 validation — 2026-10-16
+
+86 automated tests passed locally. Synthetic official-format fixtures cover fragmented reads, strict identity validation, incomplete/wrong/duplicate/oversized responses, bounded timeout, cancellation before writes, query/send exclusion, busy queues, UART refusal, stale-session results, connection-loss clearing, and identifier-free diagnostics. Fixtures are not captured hardware evidence. Physical Flipper checks remain outstanding.
